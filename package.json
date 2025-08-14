@@ -1,0 +1,32 @@
+{
+  "name": "pully",
+  "version": "1.0.0",
+  "description": "A github app that reports PR statuses to a slack channel in a condensed manner.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "serve": "tsc && node app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/N35N0M/pully.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/N35N0M/pully/issues"
+  },
+  "homepage": "https://github.com/N35N0M/pully#readme",
+  "dependencies": {
+    "@slack/web-api": "^7.9.3",
+    "dotenv": "^17.2.1",
+    "octokit": "^5.0.3",
+    "typescript": "^5.9.2"
+  },
+  "devDependencies": {
+    "@octokit/webhooks-types": "^7.6.1",
+    "@types/node": "^24.2.1",
+    "smee-client": "^4.3.1"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "noImplicitAny": true,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "sourceMap": true,
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "declaration": true,
+    "strict": false, // TODO
+    "lib": ["es2022"]
+  },
+  "include": [
+    "app.ts",
+  ],
+  "exclude": ["node_modules/**"]
+}

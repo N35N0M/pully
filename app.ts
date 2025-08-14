@@ -1,0 +1,119 @@
+// These are the dependencies for this file.
+//
+// You installed the `dotenv` and `octokit` modules earlier. The `@octokit/webhooks` is a dependency of the `octokit` module, so you don't need to install it separately. The `fs` and `http` dependencies are built-in Node.js modules.
+import dotenv from "dotenv";
+import {App, Octokit} from "octokit";
+import {createNodeMiddleware, EmitterWebhookEventName, Webhooks} from "@octokit/webhooks";
+import fs from "fs";
+import http from "http";
+import { WebhookEvent, PullRequestOpenedEvent } from "@octokit/webhooks-types";
+import { HandlerFunction } from "@octokit/webhooks/types";
+import { WebClient } from "@slack/web-api";
+
+// This reads your `.env` file and adds the variables from that file to the `process.env` object in Node.js.
+dotenv.config();
+
+// This assigns the values of your environment variables to local variables.
+const appId = process.env.APP_ID as string;
+const webhookSecret = process.env.WEBHOOK_SECRET as string;
+const privateKeyPath = process.env.PRIVATE_KEY_PATH as string;
+const token = process.env.SLACK_TOKEN as string;
+const testChannel = process.env.CHANNEL as string;
+
+// Initialize
+const web = new WebClient(token);
+// This reads the contents of your private key file.
+const privateKey = fs.readFileSync(privateKeyPath, "utf8");
+
+// This creates a new instance of the Octokit App class.
+const app = new App({
+  appId: appId,
+  privateKey: privateKey,
+  webhooks: {
+    secret: webhookSecret
+  },
+});
+
+type prNumber = number;
+type messageTimestamp = string;
+
+const existingMessages: Map<prNumber, messageTimestamp> = new Map()
+
+
+
+export interface IHandlePulLRequestOpened {
+    octokit: Octokit,
+    payload: PullRequestOpenedEvent
+}
+
+// This sets up a webhook event listener. When your app receives a webhook event from GitHub with a `X-GitHub-Event` header value of `pull_request` and an `action` payload value of `opened`, it calls the `handlePullRequestOpened` event handler that is defined above.
+function addWebhook<E extends EmitterWebhookEventName>(webhooks: Webhooks, event: E | E[], callback: HandlerFunction<E, unknown>) {
+  webhooks.on(event, callback);
+}
+
+const formatPayload = (author: string, prTitle: string, prNumber: number, state: "opened" | "closed" | "merged", repo: string, url: string) => {
+  let text = `${repo}: ${author} ${state} <${url}|"${prTitle}" (#${prNumber})>`
+
+  if (state === 'closed' || state === "merged") {
+    text = `~${text}~`;
+  }
+
+  return text;
+}
+
+addWebhook(app.webhooks, "pull_request.opened", (options) => {
+  console.log(`Received a pull request event for #${options.payload.pull_request.url}`);
+  const prNumber = options.payload.pull_request.number;
+  const prData = options.payload.pull_request;
+  web.chat.postMessage({text: formatPayload(prData.user.login, prData.title, prData.number, "opened", options.payload.repository.full_name, prData.html_url ), channel: testChannel}).then((value) => {
+    if (value.ts){
+        existingMessages.set(prNumber, value.ts);
+    }
+  })
+} )
+
+addWebhook(app.webhooks, "pull_request.closed", (options) => {
+  console.log(`Received a pull request closed event for ${options.payload.pull_request.url}`)
+
+  const prNumber = options.payload.pull_request.number;
+  const prData = options.payload.pull_request;
+  const payload = formatPayload(prData.user.login, prData.title, prData.number, "closed", options.payload.repository.full_name, prData.html_url );
+  if (existingMessages.has(prNumber)){
+    web.chat.update({text: payload, channel: testChannel, ts: existingMessages.get(prNumber)})
+  }
+  else {
+    web.chat.postMessage({text: payload, channel: testChannel});
+  }
+})
+
+// This logs any errors that occur.
+app.webhooks.onError((error) => {
+  if (error.name === "AggregateError") {
+    console.error(`Error processing request: ${error.event}`);
+  } else {
+    console.error(error);
+  }
+});
+
+// This determines where your server will listen.
+//
+// For local development, your server will listen to port 3000 on `localhost`. When you deploy your app, you will change these values. For more information, see [Deploy your app](#deploy-your-app).
+const port = 3000;
+const host = 'localhost';
+const path = "/api/webhook";
+const localWebhookUrl = `http://${host}:${port}${path}`;
+
+// This sets up a middleware function to handle incoming webhook events.
+//
+// Octokit's `createNodeMiddleware` function takes care of generating this middleware function for you. The resulting middleware function will:
+//
+//    - Check the signature of the incoming webhook event to make sure that it matches your webhook secret. This verifies that the incoming webhook event is a valid GitHub event.
+//    - Parse the webhook event payload and identify the type of event.
+//    - Trigger the corresponding webhook event handler.
+const middleware = createNodeMiddleware(app.webhooks, {path});
+
+// This creates a Node.js server that listens for incoming HTTP requests (including webhook payloads from GitHub) on the specified port. When the server receives a request, it executes the `middleware` function that you defined earlier. Once the server is running, it logs messages to the console to indicate that it is listening.
+http.createServer(middleware).listen(port, () => {
+  console.log(`Server is listening for events at: ${localWebhookUrl}`);
+  console.log('Press Ctrl + C to quit.')
+});
