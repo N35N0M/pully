@@ -39,6 +39,13 @@ type messageTimestamp = string;
 
 const existingMessages: Map<prNumber, messageTimestamp> = new Map()
 
+/**
+ * Replace with your own info. Not really considering this sensitive so will just commit to have a working example (for me;D)
+ */
+const githubToSlackUsernames: Map<string, string> = new Map([
+
+])
+
 
 
 export interface IHandlePulLRequestOpened {
@@ -51,21 +58,55 @@ function addWebhook<E extends EmitterWebhookEventName>(webhooks: Webhooks, event
   webhooks.on(event, callback);
 }
 
-const formatPayload = (author: string, prTitle: string, prNumber: number, state: "opened" | "closed" | "merged", repo: string, url: string) => {
-  let text = `${repo}: ${author} ${state} <${url}|"${prTitle}" (#${prNumber})>`
+const formatPayload = (author: string, prTitle: string, prNumber: number, state: "opened" | "closed" | "merged", repo: string, url: string, lineAdds: number, lineRemovals: number) => {
+  let authorToUse = author;
+  if (githubToSlackUsernames.has(author)){
+    // https://api.slack.com/reference/surfaces/formatting#mentioning-users
+    authorToUse = `<@${githubToSlackUsernames.get(author)}>`
+  }
+
+  // 1. :github-approve:
+  // 2. :github-changes-requested:
+  // 3. :github-closed:
+  // 4. :github-merged:
+  // 5. :github-pr:
+  // 6. :code-review:
+  let statusSlackmoji = "";
+  switch(state) {
+    case "closed":
+      statusSlackmoji = ":github-closed:"
+      break;
+    case "opened":
+      statusSlackmoji = ":github-pr:"
+      break;
+    case "merged":
+      statusSlackmoji = ":github-merged:"
+  }
+  
+  // Main info
+  let text = `<${url}|"[${repo}] ${prTitle}" (#${prNumber})> (+${lineAdds}/-${lineRemovals}) by ${authorToUse}`
 
   if (state === 'closed' || state === "merged") {
     text = `~${text}~`;
   }
 
+  text = `${statusSlackmoji} ${text}`
+
+  // TODO approval section
+
+  // TODO changes requested section
+
+  // TODO review requested section
+
   return text;
 }
+
 
 addWebhook(app.webhooks, "pull_request.opened", (options) => {
   console.log(`Received a pull request event for #${options.payload.pull_request.url}`);
   const prNumber = options.payload.pull_request.number;
   const prData = options.payload.pull_request;
-  web.chat.postMessage({text: formatPayload(prData.user.login, prData.title, prData.number, "opened", options.payload.repository.full_name, prData.html_url ), channel: testChannel}).then((value) => {
+  web.chat.postMessage({text: formatPayload(prData.user.login, prData.title, prData.number, "opened", options.payload.repository.full_name, prData.html_url, prData.additions, prData.deletions ), channel: testChannel}).then((value) => {
     if (value.ts){
         existingMessages.set(prNumber, value.ts);
     }
@@ -77,7 +118,7 @@ addWebhook(app.webhooks, "pull_request.closed", (options) => {
 
   const prNumber = options.payload.pull_request.number;
   const prData = options.payload.pull_request;
-  const payload = formatPayload(prData.user.login, prData.title, prData.number, "closed", options.payload.repository.full_name, prData.html_url );
+  const payload = formatPayload(prData.user.login, prData.title, prData.number, "closed", options.payload.repository.full_name, prData.html_url, prData.additions, prData.deletions);
   if (existingMessages.has(prNumber)){
     web.chat.update({text: payload, channel: testChannel, ts: existingMessages.get(prNumber)})
   }

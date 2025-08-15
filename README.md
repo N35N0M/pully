@@ -24,3 +24,13 @@ Core design guidelines:
 
 Future fluff:
 - Post a summary every morning of PRs that are still left hanging (With link to the existing slack message to avoid duplicated state?)
+
+Assumptions:
+- You use the github api with token-based auth
+- You have the custom slackmojis (get them from https://slackmojis.com for instance):
+  1. :github-approve:
+  2. :github-changes-requested:
+  3. :github-closed:
+  4. :github-merged:
+  5. :github-pr:
+  6. :code-review:
