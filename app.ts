@@ -58,19 +58,33 @@ function addWebhook<E extends EmitterWebhookEventName>(webhooks: Webhooks, event
   webhooks.on(event, callback);
 }
 
-const formatPayload = (author: string, prTitle: string, prNumber: number, state: "opened" | "closed" | "merged", repo: string, url: string, lineAdds: number, lineRemovals: number) => {
-  let authorToUse = author;
-  if (githubToSlackUsernames.has(author)){
+type prState = "opened" | "closed" | "merged";
+type reviewerState = "approved" | "requested-changes" | "review_requested" | "dismissed"
+
+type username = string;
+type reviewers = Map<username, reviewerState>;
+type prReview = Map<prNumber, reviewers>;
+
+type repoFullName = string
+
+// TODO: persistant storage for this please...
+// TODO: The reason why this exists instead of just scraping repos for data all the time is that it 
+// TODO: requires more access privileges (instead of just being able to see pr-related webhooks)
+const repoData: Map<repoFullName, prReview> = new Map();
+
+const attemptTranslatingFromGithubToSlackUser = (githubLogin: string) => {
+ if (githubToSlackUsernames.has(githubLogin)){
     // https://api.slack.com/reference/surfaces/formatting#mentioning-users
-    authorToUse = `<@${githubToSlackUsernames.get(author)}>`
+    return `<@${githubToSlackUsernames.get(githubLogin)}>`
   }
 
-  // 1. :github-approve:
-  // 2. :github-changes-requested:
-  // 3. :github-closed:
-  // 4. :github-merged:
-  // 5. :github-pr:
-  // 6. :code-review:
+  return githubLogin
+}
+
+
+const formatPayload = (author: string, prTitle: string, prNumber: number, state: prState, repo: string, url: string, lineAdds?: number, lineRemovals?: number) => {
+  let authorToUse = attemptTranslatingFromGithubToSlackUser(author);
+
   let statusSlackmoji = "";
   switch(state) {
     case "closed":
@@ -82,9 +96,51 @@ const formatPayload = (author: string, prTitle: string, prNumber: number, state:
     case "merged":
       statusSlackmoji = ":github-merged:"
   }
+
+  let linediff = ""
+  if (lineAdds !== undefined && lineRemovals !== undefined) {
+    linediff = `(+${lineAdds}/-${lineRemovals})`
+  }
   
   // Main info
-  let text = `<${url}|"[${repo}] ${prTitle}" (#${prNumber})> (+${lineAdds}/-${lineRemovals}) by ${authorToUse}`
+  let text = `<${url}|[${repo}] ${prTitle} (#${prNumber})> ${linediff} by ${authorToUse}`
+
+  if (repoData.has(repo)){
+    const specificRepoData = repoData.get(repo);
+
+    if (specificRepoData.has(prNumber)){
+      const prReviewData = specificRepoData.get(prNumber);
+
+      const approvers = new Set()
+      const change_requesters = new Set()
+      const review_requests = new Set()
+
+      for (let [reviewer, state] of prReviewData){
+        switch (state) {
+          case "approved":
+            approvers.add(reviewer);
+            break;
+          case "requested-changes":
+            change_requesters.add(reviewer);
+            break;
+          case "review_requested":
+            review_requests.add(reviewer);
+        }
+      }
+
+      if (approvers.size !== 0){
+        text += " | :github-approve: " + Array.from(approvers).join(' ')
+      }
+
+      if (change_requesters.size !== 0){
+        text += " | :github-changes-requested: " + Array.from(change_requesters).join(' ')
+      }
+
+      if (review_requests.size !== 0){
+        text += " | :code-review: " + Array.from(review_requests).join(' ')
+      }
+    }
+  }
 
   if (state === 'closed' || state === "merged") {
     text = `~${text}~`;
@@ -92,20 +148,77 @@ const formatPayload = (author: string, prTitle: string, prNumber: number, state:
 
   text = `${statusSlackmoji} ${text}`
 
-  // TODO approval section
-
-  // TODO changes requested section
-
-  // TODO review requested section
-
   return text;
 }
 
+const ensureStateIsInitialized = (repoFullName: string, prNumber: number) => {
+  if (!repoData.has(repoFullName)){
+    repoData.set(repoFullName, new Map());
+  }
+
+  const specificRepoData = repoData.get(repoFullName)
+
+  if (!specificRepoData.has(prNumber)){
+    specificRepoData.set(prNumber, new Map());
+  }
+}
+
+
+addWebhook(app.webhooks, "pull_request_review.submitted", (options) => {
+  console.log("Received a pull request review submitted event")
+  ensureStateIsInitialized(options.payload.repository.full_name, options.payload.pull_request.number)
+
+  const specificPrData = repoData.get(options.payload.repository.full_name).get(options.payload.pull_request.number);
+
+  const author = attemptTranslatingFromGithubToSlackUser(options.payload.review.user.login);
+
+  switch (options.payload.review.state){
+    case "approved":
+      specificPrData.set(author, "approved")
+      break;
+    case "changes_requested":
+      specificPrData.set(author, "requested-changes")
+      break;
+    case "dismissed":
+      specificPrData.set(author, "dismissed");
+  }
+  
+  const prNumber = options.payload.pull_request.number;
+  const prData = options.payload.pull_request;
+  const payload = formatPayload(prData.user.login, prData.title, prData.number, prData.state === "open" ? "opened" : "closed", options.payload.repository.full_name, prData.html_url, undefined, undefined);
+  if (existingMessages.has(prNumber)){
+    web.chat.update({text: payload, channel: testChannel, ts: existingMessages.get(prNumber)})
+  }
+  else {
+    web.chat.postMessage({text: payload, channel: testChannel});
+  }
+})
+
+addWebhook(app.webhooks, "pull_request.review_requested", (options) => {
+  const specificPrData = repoData.get(options.payload.repository.full_name).get(options.payload.pull_request.number);
+
+  if (options.payload.requested_reviewer){
+    const author = attemptTranslatingFromGithubToSlackUser(options.payload.requested_reviewer.login);
+    specificPrData.set(author, "review_requested")
+  }
+
+  const prNumber = options.payload.pull_request.number;
+  const prData = options.payload.pull_request;
+  const payload = formatPayload(prData.user.login, prData.title, prData.number, prData.state === "open" ? "opened" : "closed", options.payload.repository.full_name, prData.html_url, prData.additions, prData.deletions);
+  if (existingMessages.has(prNumber)){
+    web.chat.update({text: payload, channel: testChannel, ts: existingMessages.get(prNumber)})
+  }
+  else {
+    web.chat.postMessage({text: payload, channel: testChannel});
+  }
+})
 
 addWebhook(app.webhooks, "pull_request.opened", (options) => {
   console.log(`Received a pull request event for #${options.payload.pull_request.url}`);
   const prNumber = options.payload.pull_request.number;
   const prData = options.payload.pull_request;
+
+  // TODO: We should perhaps not assume that open is the first time that this logic sees this pr... (what if PRs already exist?)
   web.chat.postMessage({text: formatPayload(prData.user.login, prData.title, prData.number, "opened", options.payload.repository.full_name, prData.html_url, prData.additions, prData.deletions ), channel: testChannel}).then((value) => {
     if (value.ts){
         existingMessages.set(prNumber, value.ts);
