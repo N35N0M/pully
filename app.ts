@@ -8,9 +8,9 @@ import {
 	EmitterWebhookEventName,
 	Webhooks,
 } from "@octokit/webhooks";
-import fs from "fs";
+import fs, { readFileSync } from "fs";
 import http from "http";
-import { WebhookEvent, PullRequestOpenedEvent } from "@octokit/webhooks-types";
+import { PullRequestOpenedEvent } from "@octokit/webhooks-types";
 import { HandlerFunction } from "@octokit/webhooks/types";
 import { WebClient } from "@slack/web-api";
 
@@ -41,8 +41,6 @@ const app = new App({
 type prNumber = number;
 type messageTimestamp = string;
 
-const existingMessages: Map<prNumber, messageTimestamp> = new Map();
-
 // TODO: These three maps needs some refinement as we are going to mess this up... Should maybe have a person object and collect the three instead...
 
 /**
@@ -59,11 +57,6 @@ const githubToFirstname: Map<string, string> = new Map([
 const slackUsernameToFirstname: Map<string, string> = new Map([
 
 ]);
-
-export interface IHandlePulLRequestOpened {
-	octokit: Octokit;
-	payload: PullRequestOpenedEvent;
-}
 
 // This sets up a webhook event listener. When your app receives a webhook event from GitHub with a `X-GitHub-Event` header value of `pull_request` and an `action` payload value of `opened`, it calls the `handlePullRequestOpened` event handler that is defined above.
 function addWebhook<E extends EmitterWebhookEventName>(
@@ -82,15 +75,40 @@ type reviewerState =
 	| "dismissed";
 
 type username = string;
-type reviewers = Map<username, reviewerState>;
-type prReview = Map<prNumber, reviewers>;
+type reviewers = Record<username, reviewerState>;
+type prReviewData = Record<prNumber, reviewers>;
 
 type repoFullName = string;
 
-// TODO: persistant storage for this please...
-// TODO: The reason why this exists instead of just scraping repos for data all the time is that it
-// TODO: requires more access privileges (instead of just being able to see pr-related webhooks)
-const repoData: Map<repoFullName, prReview> = new Map();
+// The reason why we keep a local state instead of just scraping repos for data all the time is that it
+// requires more access privileges (instead of just being able to see pr-related webhook payloads)
+const repodatafile = "repodata.json";
+const messagedatafile = "messagedata.json";
+
+interface IRepoData {
+  reviews: prReviewData
+  messages: Record<prNumber, messageTimestamp>
+}
+
+let repoData: Record<repoFullName, IRepoData> = {};
+
+try {
+  // TODO: Should sanitize json data
+	repoData = JSON.parse(readFileSync(repodatafile, "utf-8"));
+	console.log(repoData);
+
+} catch {
+	console.warn("No data.json found, starting state from scratch...");
+}
+
+
+
+const saveState = (
+) => {
+	console.log(repoData);
+	fs.writeFileSync(repodatafile, JSON.stringify(repoData));
+	console.log("SaveState called");
+};
 
 const attemptTranslatingFromGithubToSlackUser = (githubLogin: string) => {
 	if (githubToSlackUsernames.has(githubLogin)) {
@@ -149,17 +167,17 @@ const formatPayload = (
 	// Main info
 	let text = `<${url}|[${repo}] ${prTitle} (#${prNumber})> ${linediff} by ${authorToUse}`;
 
-	if (repoData.has(repo)) {
-		const specificRepoData = repoData.get(repo);
+	if (repo in repoData) {
+		const specificRepoData = repoData[repo];
 
-		if (specificRepoData.has(prNumber)) {
-			const prReviewData = specificRepoData.get(prNumber);
+		if (prNumber in specificRepoData.reviews) {
+			const prReviewData = specificRepoData.reviews[prNumber];
 
 			const approvers = new Set();
 			const change_requesters = new Set();
 			const review_requests = new Set();
 
-			for (let [reviewer, state] of prReviewData) {
+			for (let [reviewer, state] of Object.entries(prReviewData)) {
 				switch (state) {
 					case "approved":
 						approvers.add(attemptTranslatingFromSlackTagToFirstname(reviewer));
@@ -202,18 +220,18 @@ const formatPayload = (
 };
 
 const ensureStateIsInitialized = (repoFullName: string, prNumber: number) => {
-	if (!repoData.has(repoFullName)) {
-		repoData.set(repoFullName, new Map());
+	if (!(repoFullName in repoData)) {
+		repoData[repoFullName] = { reviews: {}, messages: {}};
 	}
 
-	const specificRepoData = repoData.get(repoFullName);
+	const specificRepoData = repoData[repoFullName].reviews;
 
-	if (!specificRepoData.has(prNumber)) {
-		specificRepoData.set(prNumber, new Map());
+	if (!(prNumber in specificRepoData)) {
+		specificRepoData[prNumber] = {};
 	}
 };
 
-addWebhook(app.webhooks, "pull_request_review.submitted", (options) => {
+addWebhook(app.webhooks, "pull_request_review.submitted", async (options) => {
 	console.log("Received a pull request review submitted event");
 	ensureStateIsInitialized(
 		options.payload.repository.full_name,
@@ -221,28 +239,31 @@ addWebhook(app.webhooks, "pull_request_review.submitted", (options) => {
 	);
 
 	const specificPrData = repoData
-		.get(options.payload.repository.full_name)
-		.get(options.payload.pull_request.number);
+		[options.payload.repository.full_name].reviews
+		[options.payload.pull_request.number];
+
+  const existingMessages = repoData
+		[options.payload.repository.full_name].messages
 
 	const author = attemptTranslatingFromGithubToSlackUser(
-		options.payload.review.user.login,
+		options.payload.review.user?.login ?? "undefined",
 	);
 
 	switch (options.payload.review.state) {
 		case "approved":
-			specificPrData.set(author, "approved");
+			specificPrData[author] = "approved"
 			break;
 		case "changes_requested":
-			specificPrData.set(author, "requested-changes");
+			specificPrData[author] = "requested-changes"
 			break;
 		case "dismissed":
-			specificPrData.set(author, "dismissed");
+			specificPrData[author] = "dismissed";
 	}
 
 	const prNumber = options.payload.pull_request.number;
 	const prData = options.payload.pull_request;
 	const payload = formatPayload(
-		prData.user.login,
+		prData.user?.login ?? "undefined",
 		prData.title,
 		prData.number,
 		prData.state === "open" ? "opened" : "closed",
@@ -251,33 +272,48 @@ addWebhook(app.webhooks, "pull_request_review.submitted", (options) => {
 		undefined,
 		undefined,
 	);
-	if (existingMessages.has(prNumber)) {
+	if (prNumber in existingMessages) {
 		web.chat.update({
 			text: payload,
 			channel: testChannel,
-			ts: existingMessages.get(prNumber),
+			ts: existingMessages[prNumber],
 		});
 	} else {
-		web.chat.postMessage({ text: payload, channel: testChannel });
+		const value = await web.chat.postMessage({
+			text: payload,
+			channel: testChannel,
+		});
+		if (value.ts) {
+			existingMessages[prNumber] = value.ts;
+		}
 	}
+
+	saveState();
 });
 
-addWebhook(app.webhooks, "pull_request.review_requested", (options) => {
+addWebhook(app.webhooks, "pull_request.review_requested", async (options) => {
+    	ensureStateIsInitialized(
+		options.payload.repository.full_name,
+		options.payload.pull_request.number,
+	);
 	const specificPrData = repoData
-		.get(options.payload.repository.full_name)
-		.get(options.payload.pull_request.number);
+		[options.payload.repository.full_name].reviews[options.payload.pull_request.number];
+
+
+  const existingMessages = repoData
+		[options.payload.repository.full_name].messages
 
 	if (options.payload.requested_reviewer) {
 		const author = attemptTranslatingFromGithubToSlackUser(
 			options.payload.requested_reviewer.login,
 		);
-		specificPrData.set(author, "review_requested");
+		specificPrData[author] = "review_requested";
 	}
 
 	const prNumber = options.payload.pull_request.number;
 	const prData = options.payload.pull_request;
 	const payload = formatPayload(
-		prData.user.login,
+		prData.user?.login ?? "undefined",
 		prData.title,
 		prData.number,
 		prData.state === "open" ? "opened" : "closed",
@@ -286,51 +322,70 @@ addWebhook(app.webhooks, "pull_request.review_requested", (options) => {
 		prData.additions,
 		prData.deletions,
 	);
-	if (existingMessages.has(prNumber)) {
+	if (prNumber in existingMessages) {
 		web.chat.update({
 			text: payload,
 			channel: testChannel,
-			ts: existingMessages.get(prNumber),
+			ts: existingMessages[prNumber],
 		});
 	} else {
-		web.chat.postMessage({ text: payload, channel: testChannel });
+		const value = await web.chat.postMessage({
+			text: payload,
+			channel: testChannel,
+		});
+		if (value.ts) {
+			existingMessages[prNumber] = value.ts;
+		}
 	}
+
+	saveState();
 });
 
-addWebhook(app.webhooks, "pull_request.opened", (options) => {
+addWebhook(app.webhooks, "pull_request.opened", async (options) => {
 	console.log(
 		`Received a pull request event for #${options.payload.pull_request.url}`,
+	);
+	ensureStateIsInitialized(
+		options.payload.repository.full_name,
+		options.payload.pull_request.number,
 	);
 	const prNumber = options.payload.pull_request.number;
 	const prData = options.payload.pull_request;
 
+  const existingMessages = repoData
+		[options.payload.repository.full_name].messages
+
 	// TODO: We should perhaps not assume that open is the first time that this logic sees this pr... (what if PRs already exist?)
-	web.chat
-		.postMessage({
-			text: formatPayload(
-				prData.user.login,
-				prData.title,
-				prData.number,
-				"opened",
-				options.payload.repository.full_name,
-				prData.html_url,
-				prData.additions,
-				prData.deletions,
-			),
-			channel: testChannel,
-		})
-		.then((value) => {
-			if (value.ts) {
-				existingMessages.set(prNumber, value.ts);
-			}
-		});
+	const value = await web.chat.postMessage({
+		text: formatPayload(
+			prData.user.login,
+			prData.title,
+			prData.number,
+			"opened",
+			options.payload.repository.full_name,
+			prData.html_url,
+			prData.additions,
+			prData.deletions,
+		),
+		channel: testChannel,
+	});
+	if (value.ts) {
+		existingMessages[prNumber] = value.ts;
+	}
+
+	saveState();
 });
 
-addWebhook(app.webhooks, "pull_request.closed", (options) => {
+addWebhook(app.webhooks, "pull_request.closed", async (options) => {
 	console.log(
 		`Received a pull request closed event for ${options.payload.pull_request.url}`,
 	);
-
+	ensureStateIsInitialized(
+		options.payload.repository.full_name,
+		options.payload.pull_request.number,
+	);
+  const existingMessages = repoData
+		[options.payload.repository.full_name].messages
 	const prNumber = options.payload.pull_request.number;
 	const prData = options.payload.pull_request;
 	const payload = formatPayload(
@@ -343,14 +398,21 @@ addWebhook(app.webhooks, "pull_request.closed", (options) => {
 		prData.additions,
 		prData.deletions,
 	);
-	if (existingMessages.has(prNumber)) {
+	if (prNumber in existingMessages) {
 		web.chat.update({
 			text: payload,
 			channel: testChannel,
-			ts: existingMessages.get(prNumber),
+			ts: existingMessages[prNumber],
 		});
 	} else {
-		web.chat.postMessage({ text: payload, channel: testChannel });
+		const value = await web.chat.postMessage({
+			text: payload,
+			channel: testChannel,
+		});
+		if (value.ts) {
+			existingMessages[prNumber] = value.ts;
+		}
+		saveState();
 	}
 });
 

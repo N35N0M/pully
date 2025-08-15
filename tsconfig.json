@@ -10,7 +10,7 @@
     "allowSyntheticDefaultImports": true,
     "declaration": true,
     "downlevelIteration": true,
-    "strict": false, // TODO
+    "strict": true,
     "lib": ["es2022"]
   },
   "include": [
