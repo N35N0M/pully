@@ -95,10 +95,7 @@ const authors: AuthorInfo[] = [
 	},
 ];
 
-/**
- * Constructs a one-line slack message, meant to be invoked whenever any of the arguments change
- */
-const constructDenseSlackMessage = (
+const constructSlackMessage = (
 	pullyRepodataCache: RepoData,
 	author: AuthorInfo,
 	prTitle: string,
@@ -241,7 +238,7 @@ const handlePullRequestReviewSubmitted = async (
 	}
 
 	const prData = payload.pull_request;
-	const slackMessage = constructDenseSlackMessage(
+	const slackMessage = constructSlackMessage(
 		pullyRepodataCache,
 		author,
 		prData.title,
@@ -302,7 +299,7 @@ const handlePullRequestGeneric = async (
 
 	const author = getAuthorInfoFromGithubLogin(authors, prData.user.login);
 
-	const slackMessage = constructDenseSlackMessage(
+	const slackMessage = constructSlackMessage(
 		pullyRepodataCache,
 		author,
 		prData.title,
