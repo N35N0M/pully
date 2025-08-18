@@ -145,3 +145,8 @@ vite.config.ts.timestamp-*
 
 messagedata.json
 repodata.json
+open.json
+close.json
+approve.json 
+change.json
+request.json

@@ -7,6 +7,7 @@ import {
 	PullRequestReviewSubmittedEvent,
 } from "@octokit/webhooks-types";
 import { WebClient } from "@slack/web-api";
+import assert from "assert";
 
 type PrNumber = number;
 type SlackMessageTimestamp = string;
@@ -47,6 +48,8 @@ const postToSlack = async (
 ) => {
 	const token = process.env.SLACK_TOKEN as string;
 	const channel = process.env.SLACK_CHANNEL as string;
+	assert(token !== undefined, "SLACK_TOKEN was not defined in the environment")
+	assert(channel !== undefined, "SLACK_CHANNEL (the slack channel id) was not defined in the environment")
 	const web = new WebClient(token);
 
 	if (pullyPrDataCache.message) {
@@ -137,7 +140,7 @@ const constructSlackMessage = (
 			const change_requesters = new Set();
 			const review_requests = new Set();
 
-			for (let [reviewer, state] of Object.entries(prReviewData)) {
+			for (let [reviewer, state] of Object.entries(prReviewData.reviews)) {
 				const reviewerData = getAuthorInfoFromGithubLogin(authors, reviewer);
 				switch (state) {
 					case "approved":
@@ -146,7 +149,7 @@ const constructSlackMessage = (
 						);
 						break;
 					case "requested-changes":
-						approvers.add(
+						change_requesters.add(
 							reviewerData.firstName ?? reviewerData.githubUsername,
 						);
 						break;
@@ -317,7 +320,7 @@ const handlePullRequestOpened = async (
 	pullyRepodataCache: RepoData,
 	payload: PullRequestOpenedEvent,
 ) => {
-	console.log(`Received a pull request event for #${payload.pull_request.url}`);
+	console.log(`Received a pull request open event for #${payload.pull_request.url}`);
 	await handlePullRequestGeneric(pullyRepodataCache, payload);
 };
 
@@ -358,6 +361,38 @@ const savePullyState = (pullyState: RepoData) => {
 
 const repoData = loadPullyState();
 
-// TODO: Invoke correct handler based on type
+const getEventData = (): PullRequestReviewSubmittedEvent | PullRequestOpenedEvent | PullRequestReviewRequestedEvent | PullRequestClosedEvent => {
+	let eventData: PullRequestReviewSubmittedEvent | PullRequestOpenedEvent | PullRequestReviewRequestedEvent | PullRequestClosedEvent;
 
-savePullyState(repoData);
+	// TODO: fetch state file from orphan branch
+
+	try {
+		// TODO: Should sanitize json data
+		const eventJsonFile = process.env.EVENT_JSON_FILE as string;
+		eventData = JSON.parse(readFileSync(eventJsonFile, "utf-8"));
+	} catch {
+		console.warn("No data.json found, starting state from scratch...");
+		throw Error("Could not read the event data");
+	}
+
+	return eventData;
+}
+
+const data = getEventData();
+console.log(data)
+
+switch (data.action) {
+	case "submitted":
+		handlePullRequestReviewSubmitted(repoData, data).then(() => savePullyState(repoData));
+		break;
+	case "closed":
+		handlePullRequestClosed(repoData, data).then(() => savePullyState(repoData));
+		break
+	case "opened":
+		handlePullRequestOpened(repoData, data).then(() => savePullyState(repoData));
+		break
+	case "review_requested":
+		handlePullRequestReviewRequested(repoData, data).then(() => savePullyState(repoData));
+		break
+}
+
