@@ -1,6 +1,5 @@
 import fs, { readFileSync } from "fs";
 import {
-	PullRequest,
 	PullRequestClosedEvent,
 	PullRequestEvent,
 	PullRequestOpenedEvent,
@@ -30,7 +29,6 @@ interface AuthorInfo {
  * Posts one message per PR to a specified channel, assuming that the pullyMessageCache persists between CI runs.
  */
 const postToSlack = async (
-	prNumber: number,
 	slackChannelId: string,
 	slackMessageContent: string,
 	pullyPrDataCache: IPrData,
@@ -70,25 +68,6 @@ const getAuthorInfoFromGithubLogin = (
 	return {
 		githubUsername: githubLogin,
 		slackMemberId: undefined,
-		firstName: undefined,
-	};
-};
-
-const getAuthorInfoFromSlackMemberId = (
-	authorInfos: AuthorInfo[],
-	slackMemberId: string,
-): AuthorInfo => {
-	const search = authorInfos.find(
-		(value) => value.slackMemberId === slackMemberId,
-	);
-
-	if (search) {
-		return search;
-	}
-
-	return {
-		githubUsername: undefined,
-		slackMemberId: slackMemberId,
 		firstName: undefined,
 	};
 };
@@ -186,7 +165,6 @@ const constructDenseSlackMessage = (
 		linediff = `(+${lineAdds}/-${lineRemovals})`;
 	}
 
-	// Main info
 	let text = `<${prUrl}|[${repoFullname}] ${prTitle} (#${prNumber})> ${linediff} by ${authorToUse}`;
 
 	if (repoFullname in repoData) {
@@ -246,7 +224,6 @@ const constructDenseSlackMessage = (
 };
 
 /**
- * TODO: Feels like there should be some better way of doing this :thinking:
  * @param repoFullName
  * @param prNumber
  */
@@ -265,17 +242,17 @@ const ensureStateIsInitializedForRepoAndPr = (
 	}
 };
 
+const getPrDataCache = (repoFullName: RepoFullname, prNumber: PrNumber): IPrData => {
+	ensureStateIsInitializedForRepoAndPr(repoFullName, prNumber)
+	return repoData[repoFullName].prData[prNumber];
+}
+
 const handlePullRequestReviewSubmitted = async (
 	payload: PullRequestReviewSubmittedEvent,
 ) => {
 	console.log("Received a pull request review submitted event");
-	ensureStateIsInitializedForRepoAndPr(
-		payload.repository.full_name,
-		payload.pull_request.number,
-	);
 
-	const specificPrData =
-		repoData[payload.repository.full_name].prData[payload.pull_request.number];
+	const specificPrData = getPrDataCache(payload.repository.full_name, payload.pull_request.number)
 
 	const author = getAuthorInfoFromGithubLogin(
 		authors,
@@ -296,7 +273,6 @@ const handlePullRequestReviewSubmitted = async (
 		}
 	}
 
-	const prNumber = payload.pull_request.number;
 	const prData = payload.pull_request;
 	const slackMessage = constructDenseSlackMessage(
 		author,
@@ -309,13 +285,11 @@ const handlePullRequestReviewSubmitted = async (
 		undefined,
 	);
 
-	await postToSlack(prNumber, testChannel, slackMessage, specificPrData);
+	await postToSlack(testChannel, slackMessage, specificPrData);
 	saveMessageCacheAndReviewStates();
 };
 
-const getPrDataCache = (repoFullName: RepoFullname, prNumber: PrNumber): IPrData => {
-	return repoData[repoFullName].prData[prNumber];
-}
+
 
 
 const handlePullRequestReviewRequested = async (
@@ -323,7 +297,6 @@ const handlePullRequestReviewRequested = async (
 ) => {
 	const repoFullName = payload.repository.full_name
 	const prNumber = payload.pull_request.number
-	ensureStateIsInitializedForRepoAndPr(repoFullName, prNumber);
 	const prDataCache = getPrDataCache(repoFullName, prNumber);
 
 	let author: AuthorInfo = { slackMemberId: "", githubUsername: "" };
@@ -356,14 +329,13 @@ const handlePullRequestReviewRequested = async (
 		prData.deletions,
 	);
 
-	await postToSlack(prNumber, testChannel, slackMessage, prDataCache);
+	await postToSlack(testChannel, slackMessage, prDataCache);
 	saveMessageCacheAndReviewStates();
 };
 
 const handlePullRequestGeneric = async (payload: PullRequestEvent) => {
 	const repoFullName = payload.repository.full_name
 	const prNumber = payload.pull_request.number
-	ensureStateIsInitializedForRepoAndPr(repoFullName, prNumber);
 	const prDataCache = getPrDataCache(repoFullName, prNumber);
 	const prData = payload.pull_request;
 
@@ -379,7 +351,7 @@ const handlePullRequestGeneric = async (payload: PullRequestEvent) => {
 		prData.additions,
 		prData.deletions,
 	);
-	await postToSlack(prNumber, testChannel, slackMessage, prDataCache);
+	await postToSlack(testChannel, slackMessage, prDataCache);
 	saveMessageCacheAndReviewStates();
 }
 
