@@ -1,158 +1,180 @@
-// These are the dependencies for this file.
-//
-// You installed the `dotenv` and `octokit` modules earlier. The `@octokit/webhooks` is a dependency of the `octokit` module, so you don't need to install it separately. The `fs` and `http` dependencies are built-in Node.js modules.
-import dotenv from "dotenv";
-import { App, Octokit } from "octokit";
-import {
-	createNodeMiddleware,
-	EmitterWebhookEventName,
-	Webhooks,
-} from "@octokit/webhooks";
 import fs, { readFileSync } from "fs";
-import http from "http";
-import { PullRequestOpenedEvent } from "@octokit/webhooks-types";
-import { HandlerFunction } from "@octokit/webhooks/types";
+import {
+	PullRequest,
+	PullRequestClosedEvent,
+	PullRequestEvent,
+	PullRequestOpenedEvent,
+	PullRequestReviewRequestedEvent,
+	PullRequestReviewSubmittedEvent,
+} from "@octokit/webhooks-types";
 import { WebClient } from "@slack/web-api";
 
-// This reads your `.env` file and adds the variables from that file to the `process.env` object in Node.js.
-dotenv.config();
-
 // This assigns the values of your environment variables to local variables.
-const appId = process.env.APP_ID as string;
-const webhookSecret = process.env.WEBHOOK_SECRET as string;
-const privateKeyPath = process.env.PRIVATE_KEY_PATH as string;
 const token = process.env.SLACK_TOKEN as string;
-const testChannel = process.env.CHANNEL as string;
+const testChannel = process.env.SLACK_CHANNEL as string;
 
-// Initialize
-const web = new WebClient(token);
-// This reads the contents of your private key file.
-const privateKey = fs.readFileSync(privateKeyPath, "utf8");
 
-// This creates a new instance of the Octokit App class.
-const app = new App({
-	appId: appId,
-	privateKey: privateKey,
-	webhooks: {
-		secret: webhookSecret,
-	},
-});
+type PrNumber = number;
+type SlackMessageTimestamp = string;
 
-type prNumber = number;
-type messageTimestamp = string;
-
-// TODO: These three maps needs some refinement as we are going to mess this up... Should maybe have a person object and collect the three instead...
-
-/**
- * Replace with your own info. Not really considering this sensitive so will just commit to have a working example (for me;D)
- */
-const githubToSlackUsernames: Map<string, string> = new Map([
-
-]);
-
-const githubToFirstname: Map<string, string> = new Map([
-
-]);
-
-const slackUsernameToFirstname: Map<string, string> = new Map([
-
-]);
-
-// This sets up a webhook event listener. When your app receives a webhook event from GitHub with a `X-GitHub-Event` header value of `pull_request` and an `action` payload value of `opened`, it calls the `handlePullRequestOpened` event handler that is defined above.
-function addWebhook<E extends EmitterWebhookEventName>(
-	webhooks: Webhooks,
-	event: E | E[],
-	callback: HandlerFunction<E, unknown>,
-) {
-	webhooks.on(event, callback);
+interface AuthorInfo {
+	/**
+	 * The github username (i.e. "login" field in the User API)
+	 */
+	githubUsername?: string;
+	slackMemberId?: string;
+	firstName?: string;
 }
 
-type prState = "opened" | "closed" | "merged";
-type reviewerState =
+/**
+ * Posts one message per PR to a specified channel, assuming that the pullyMessageCache persists between CI runs.
+ */
+const postToSlack = async (
+	prNumber: number,
+	slackChannelId: string,
+	slackMessageContent: string,
+	pullyPrDataCache: IPrData,
+) => {
+	const web = new WebClient(token);
+
+	if (pullyPrDataCache.message) {
+		web.chat.update({
+			text: slackMessageContent,
+			channel: slackChannelId,
+			ts: pullyPrDataCache.message,
+		});
+	} else {
+		const value = await web.chat.postMessage({
+			text: slackMessageContent,
+			channel: slackChannelId,
+		});
+		if (value.ts) {
+			pullyPrDataCache.message = value.ts;
+		}
+	}
+};
+
+
+const getAuthorInfoFromGithubLogin = (
+	authorInfos: AuthorInfo[],
+	githubLogin: string,
+): AuthorInfo => {
+	const search = authorInfos.find(
+		(value) => value.githubUsername === githubLogin,
+	);
+
+	if (search) {
+		return search;
+	}
+
+	return {
+		githubUsername: githubLogin,
+		slackMemberId: undefined,
+		firstName: undefined,
+	};
+};
+
+const getAuthorInfoFromSlackMemberId = (
+	authorInfos: AuthorInfo[],
+	slackMemberId: string,
+): AuthorInfo => {
+	const search = authorInfos.find(
+		(value) => value.slackMemberId === slackMemberId,
+	);
+
+	if (search) {
+		return search;
+	}
+
+	return {
+		githubUsername: undefined,
+		slackMemberId: slackMemberId,
+		firstName: undefined,
+	};
+};
+
+// TODO: Fix function that loads this info from env and populates authorinfos so we dont have to keep this in the src
+const authors: AuthorInfo[] = [
+	{ githubUsername: "N35N0M", slackMemberId: "U08FWFQPT60", firstName: "Kris" },
+	{
+		githubUsername: "kristoffer-monsen-bulder",
+		slackMemberId: "U08FWFQPT60",
+		firstName: "Kris",
+	},
+];
+
+type PrState = "open" | "closed" | "merged";
+type ReviewerState =
 	| "approved"
 	| "requested-changes"
 	| "review_requested"
 	| "dismissed";
 
-type username = string;
-type reviewers = Record<username, reviewerState>;
-type prReviewData = Record<prNumber, reviewers>;
+type GithubUsername = string;
+type Reviewers = Record<GithubUsername, ReviewerState>;
 
-type repoFullName = string;
-
-// The reason why we keep a local state instead of just scraping repos for data all the time is that it
-// requires more access privileges (instead of just being able to see pr-related webhook payloads)
-const repodatafile = "repodata.json";
-const messagedatafile = "messagedata.json";
-
-interface IRepoData {
-  reviews: prReviewData
-  messages: Record<prNumber, messageTimestamp>
+interface IPrData {
+	reviews: Reviewers,
+	/**
+	 * This repo explicitly assumes one slack message (and thus channel) per pull request
+	 */
+	message?: SlackMessageTimestamp
 }
 
-let repoData: Record<repoFullName, IRepoData> = {};
+type PrData = Record<PrNumber, IPrData>;
+
+/**
+ * The full name of the repo, i.e. <owner/repo name>, where owner is either a github user or a github organization
+ */
+type RepoFullname = string;
+
+/**
+ * The reason why we keep a local state instead of just scraping repos for data all the time is that it
+ * requires more access privileges (instead of just being able to see pr-related webhook payloads)
+ */
+const repodatafile = "repodata.json";
+
+interface IRepoData {
+	prData: PrData;
+}
+
+// TODO lets not do god states to make function signatures easier
+let repoData: Record<RepoFullname, IRepoData> = {};
 
 try {
-  // TODO: Should sanitize json data
+	// TODO: Should sanitize json data
 	repoData = JSON.parse(readFileSync(repodatafile, "utf-8"));
-	console.log(repoData);
-
 } catch {
 	console.warn("No data.json found, starting state from scratch...");
 }
 
-
-
-const saveState = (
-) => {
-	console.log(repoData);
+const saveMessageCacheAndReviewStates = () => {
 	fs.writeFileSync(repodatafile, JSON.stringify(repoData));
-	console.log("SaveState called");
+	// TODO need logic to save/load to orphan branch...
+	console.log("Saved state");
 };
 
-const attemptTranslatingFromGithubToSlackUser = (githubLogin: string) => {
-	if (githubToSlackUsernames.has(githubLogin)) {
-		// https://api.slack.com/reference/surfaces/formatting#mentioning-users
-		return `<@${githubToSlackUsernames.get(githubLogin)}>`;
-	}
-
-	return githubLogin;
-};
-
-const attemptTranslatingFromGithubToFirstname = (githubLogin: string) => {
-	if (githubToFirstname.has(githubLogin)) {
-		return `${githubToFirstname.get(githubLogin)}`;
-	}
-
-	return githubLogin;
-};
-
-const attemptTranslatingFromSlackTagToFirstname = (slackMention: string) => {
-	if (slackUsernameToFirstname.has(slackMention)) {
-		return `${slackUsernameToFirstname.get(slackMention)}`;
-	}
-
-	return slackMention;
-};
-
-const formatPayload = (
-	author: string,
+/**
+ * Constructs a one-line slack message, meant to be invoked whenever any of the arguments change
+ */
+const constructDenseSlackMessage = (
+	author: AuthorInfo,
 	prTitle: string,
-	prNumber: number,
-	state: prState,
-	repo: string,
-	url: string,
+	prNumber: PrNumber,
+	prState: PrState,
+	repoFullname: RepoFullname,
+	prUrl: string,
 	lineAdds?: number,
 	lineRemovals?: number,
 ) => {
-	let authorToUse = attemptTranslatingFromGithubToFirstname(author);
+	let authorToUse = author.firstName ?? author.githubUsername;
 
 	let statusSlackmoji = "";
-	switch (state) {
+	switch (prState) {
 		case "closed":
 			statusSlackmoji = ":github-closed:";
 			break;
-		case "opened":
+		case "open":
 			statusSlackmoji = ":github-pr:";
 			break;
 		case "merged":
@@ -165,30 +187,34 @@ const formatPayload = (
 	}
 
 	// Main info
-	let text = `<${url}|[${repo}] ${prTitle} (#${prNumber})> ${linediff} by ${authorToUse}`;
+	let text = `<${prUrl}|[${repoFullname}] ${prTitle} (#${prNumber})> ${linediff} by ${authorToUse}`;
 
-	if (repo in repoData) {
-		const specificRepoData = repoData[repo];
+	if (repoFullname in repoData) {
+		const specificRepoData = repoData[repoFullname];
 
-		if (prNumber in specificRepoData.reviews) {
-			const prReviewData = specificRepoData.reviews[prNumber];
+		if (prNumber in specificRepoData.prData) {
+			const prReviewData = specificRepoData.prData[prNumber];
 
 			const approvers = new Set();
 			const change_requesters = new Set();
 			const review_requests = new Set();
 
 			for (let [reviewer, state] of Object.entries(prReviewData)) {
+				const reviewerData = getAuthorInfoFromGithubLogin(authors, reviewer);
 				switch (state) {
 					case "approved":
-						approvers.add(attemptTranslatingFromSlackTagToFirstname(reviewer));
+						approvers.add(
+							reviewerData.firstName ?? reviewerData.githubUsername,
+						);
 						break;
 					case "requested-changes":
-						change_requesters.add(
-							attemptTranslatingFromSlackTagToFirstname(reviewer),
+						approvers.add(
+							reviewerData.firstName ?? reviewerData.githubUsername,
 						);
 						break;
 					case "review_requested":
-						review_requests.add(reviewer); // Only give @ mentions when a review is requested to avoid notification spam
+						// Only give @ mentions when a review is requested to avoid notification spam
+						review_requests.add(`<@${reviewerData.slackMemberId}>`); 
 				}
 			}
 
@@ -196,7 +222,7 @@ const formatPayload = (
 				text += " | :github-approve: " + Array.from(approvers).join(", ");
 			}
 
-			if (state === "opened") {
+			if (prState === "open") {
 				if (change_requesters.size !== 0) {
 					text +=
 						" | :github-changes-requested: " +
@@ -210,7 +236,7 @@ const formatPayload = (
 		}
 	}
 
-	if (state === "closed" || state === "merged") {
+	if (prState === "closed" || prState === "merged") {
 		text = `~${text}~`;
 	}
 
@@ -219,231 +245,153 @@ const formatPayload = (
 	return text;
 };
 
-const ensureStateIsInitialized = (repoFullName: string, prNumber: number) => {
+/**
+ * TODO: Feels like there should be some better way of doing this :thinking:
+ * @param repoFullName
+ * @param prNumber
+ */
+const ensureStateIsInitializedForRepoAndPr = (
+	repoFullName: string,
+	prNumber: number,
+) => {
 	if (!(repoFullName in repoData)) {
-		repoData[repoFullName] = { reviews: {}, messages: {}};
+		repoData[repoFullName] = {prData: {}}
 	}
 
-	const specificRepoData = repoData[repoFullName].reviews;
+	const specificRepoData = repoData[repoFullName].prData;
 
 	if (!(prNumber in specificRepoData)) {
-		specificRepoData[prNumber] = {};
+		specificRepoData[prNumber] = {reviews: {}, message: undefined};
 	}
 };
 
-addWebhook(app.webhooks, "pull_request_review.submitted", async (options) => {
+const handlePullRequestReviewSubmitted = async (
+	payload: PullRequestReviewSubmittedEvent,
+) => {
 	console.log("Received a pull request review submitted event");
-	ensureStateIsInitialized(
-		options.payload.repository.full_name,
-		options.payload.pull_request.number,
+	ensureStateIsInitializedForRepoAndPr(
+		payload.repository.full_name,
+		payload.pull_request.number,
 	);
 
-	const specificPrData = repoData
-		[options.payload.repository.full_name].reviews
-		[options.payload.pull_request.number];
+	const specificPrData =
+		repoData[payload.repository.full_name].prData[payload.pull_request.number];
 
-  const existingMessages = repoData
-		[options.payload.repository.full_name].messages
-
-	const author = attemptTranslatingFromGithubToSlackUser(
-		options.payload.review.user?.login ?? "undefined",
+	const author = getAuthorInfoFromGithubLogin(
+		authors,
+		payload.review.user?.login ?? "undefined",
 	);
 
-	switch (options.payload.review.state) {
-		case "approved":
-			specificPrData[author] = "approved"
-			break;
-		case "changes_requested":
-			specificPrData[author] = "requested-changes"
-			break;
-		case "dismissed":
-			specificPrData[author] = "dismissed";
+	// Store only a public identifier in the persistent state
+	if (author.githubUsername) {
+		switch (payload.review.state) {
+			case "approved":
+				specificPrData.reviews[author.githubUsername] = "approved";
+				break;
+			case "changes_requested":
+				specificPrData.reviews[author.githubUsername] = "requested-changes";
+				break;
+			case "dismissed":
+				specificPrData.reviews[author.githubUsername] = "dismissed";
+		}
 	}
 
-	const prNumber = options.payload.pull_request.number;
-	const prData = options.payload.pull_request;
-	const payload = formatPayload(
-		prData.user?.login ?? "undefined",
+	const prNumber = payload.pull_request.number;
+	const prData = payload.pull_request;
+	const slackMessage = constructDenseSlackMessage(
+		author,
 		prData.title,
 		prData.number,
-		prData.state === "open" ? "opened" : "closed",
-		options.payload.repository.full_name,
+		prData.state,
+		payload.repository.full_name,
 		prData.html_url,
 		undefined,
 		undefined,
 	);
-	if (prNumber in existingMessages) {
-		web.chat.update({
-			text: payload,
-			channel: testChannel,
-			ts: existingMessages[prNumber],
-		});
-	} else {
-		const value = await web.chat.postMessage({
-			text: payload,
-			channel: testChannel,
-		});
-		if (value.ts) {
-			existingMessages[prNumber] = value.ts;
-		}
-	}
 
-	saveState();
-});
+	await postToSlack(prNumber, testChannel, slackMessage, specificPrData);
+	saveMessageCacheAndReviewStates();
+};
 
-addWebhook(app.webhooks, "pull_request.review_requested", async (options) => {
-    	ensureStateIsInitialized(
-		options.payload.repository.full_name,
-		options.payload.pull_request.number,
-	);
-	const specificPrData = repoData
-		[options.payload.repository.full_name].reviews[options.payload.pull_request.number];
+const getPrDataCache = (repoFullName: RepoFullname, prNumber: PrNumber): IPrData => {
+	return repoData[repoFullName].prData[prNumber];
+}
 
 
-  const existingMessages = repoData
-		[options.payload.repository.full_name].messages
+const handlePullRequestReviewRequested = async (
+	payload: PullRequestReviewRequestedEvent,
+) => {
+	const repoFullName = payload.repository.full_name
+	const prNumber = payload.pull_request.number
+	ensureStateIsInitializedForRepoAndPr(repoFullName, prNumber);
+	const prDataCache = getPrDataCache(repoFullName, prNumber);
 
-	if (options.payload.requested_reviewer) {
-		const author = attemptTranslatingFromGithubToSlackUser(
-			options.payload.requested_reviewer.login,
+	let author: AuthorInfo = { slackMemberId: "", githubUsername: "" };
+	if ("requested_reviewer" in payload) {
+		author = getAuthorInfoFromGithubLogin(
+			authors,
+			payload.requested_reviewer.login,
 		);
-		specificPrData[author] = "review_requested";
+
+		if (author.githubUsername) {
+			prDataCache.reviews[author.githubUsername] = "review_requested";
+		}
+	} else if ("requested_team" in payload) {
+		console.log("TODO we dont handle team review requests just yet.");
+		return;
+	} else {
+		console.log("Unexpected review request format");
+		return;
 	}
 
-	const prNumber = options.payload.pull_request.number;
-	const prData = options.payload.pull_request;
-	const payload = formatPayload(
-		prData.user?.login ?? "undefined",
+	const prData = payload.pull_request;
+	const slackMessage = constructDenseSlackMessage(
+		author,
 		prData.title,
-		prData.number,
-		prData.state === "open" ? "opened" : "closed",
-		options.payload.repository.full_name,
+		prNumber,
+		prData.state,
+		repoFullName,
 		prData.html_url,
 		prData.additions,
 		prData.deletions,
 	);
-	if (prNumber in existingMessages) {
-		web.chat.update({
-			text: payload,
-			channel: testChannel,
-			ts: existingMessages[prNumber],
-		});
-	} else {
-		const value = await web.chat.postMessage({
-			text: payload,
-			channel: testChannel,
-		});
-		if (value.ts) {
-			existingMessages[prNumber] = value.ts;
-		}
-	}
 
-	saveState();
-});
+	await postToSlack(prNumber, testChannel, slackMessage, prDataCache);
+	saveMessageCacheAndReviewStates();
+};
 
-addWebhook(app.webhooks, "pull_request.opened", async (options) => {
-	console.log(
-		`Received a pull request event for #${options.payload.pull_request.url}`,
-	);
-	ensureStateIsInitialized(
-		options.payload.repository.full_name,
-		options.payload.pull_request.number,
-	);
-	const prNumber = options.payload.pull_request.number;
-	const prData = options.payload.pull_request;
+const handlePullRequestGeneric = async (payload: PullRequestEvent) => {
+	const repoFullName = payload.repository.full_name
+	const prNumber = payload.pull_request.number
+	ensureStateIsInitializedForRepoAndPr(repoFullName, prNumber);
+	const prDataCache = getPrDataCache(repoFullName, prNumber);
+	const prData = payload.pull_request;
 
-  const existingMessages = repoData
-		[options.payload.repository.full_name].messages
+	const author = getAuthorInfoFromGithubLogin(authors, prData.user.login);
 
-	// TODO: We should perhaps not assume that open is the first time that this logic sees this pr... (what if PRs already exist?)
-	const value = await web.chat.postMessage({
-		text: formatPayload(
-			prData.user.login,
-			prData.title,
-			prData.number,
-			"opened",
-			options.payload.repository.full_name,
-			prData.html_url,
-			prData.additions,
-			prData.deletions,
-		),
-		channel: testChannel,
-	});
-	if (value.ts) {
-		existingMessages[prNumber] = value.ts;
-	}
-
-	saveState();
-});
-
-addWebhook(app.webhooks, "pull_request.closed", async (options) => {
-	console.log(
-		`Received a pull request closed event for ${options.payload.pull_request.url}`,
-	);
-	ensureStateIsInitialized(
-		options.payload.repository.full_name,
-		options.payload.pull_request.number,
-	);
-  const existingMessages = repoData
-		[options.payload.repository.full_name].messages
-	const prNumber = options.payload.pull_request.number;
-	const prData = options.payload.pull_request;
-	const payload = formatPayload(
-		prData.user.login,
+	const slackMessage = constructDenseSlackMessage(
+		author,
 		prData.title,
 		prData.number,
-		"closed",
-		options.payload.repository.full_name,
+		prData.state,
+		payload.repository.full_name,
 		prData.html_url,
 		prData.additions,
 		prData.deletions,
 	);
-	if (prNumber in existingMessages) {
-		web.chat.update({
-			text: payload,
-			channel: testChannel,
-			ts: existingMessages[prNumber],
-		});
-	} else {
-		const value = await web.chat.postMessage({
-			text: payload,
-			channel: testChannel,
-		});
-		if (value.ts) {
-			existingMessages[prNumber] = value.ts;
-		}
-		saveState();
-	}
-});
+	await postToSlack(prNumber, testChannel, slackMessage, prDataCache);
+	saveMessageCacheAndReviewStates();
+}
 
-// This logs any errors that occur.
-app.webhooks.onError((error) => {
-	if (error.name === "AggregateError") {
-		console.error(`Error processing request: ${error.event}`);
-	} else {
-		console.error(error);
-	}
-});
+const handlePullRequestOpened = async (payload: PullRequestOpenedEvent) => {
+	console.log(`Received a pull request event for #${payload.pull_request.url}`);
+	await handlePullRequestGeneric(payload);
+};
 
-// This determines where your server will listen.
-//
-// For local development, your server will listen to port 3000 on `localhost`. When you deploy your app, you will change these values. For more information, see [Deploy your app](#deploy-your-app).
-const port = 3000;
-const host = "localhost";
-const path = "/api/webhook";
-const localWebhookUrl = `http://${host}:${port}${path}`;
+const handlePullRequestClosed = async (payload: PullRequestClosedEvent) => {
+	console.log(
+		`Received a pull request closed event for ${payload.pull_request.url}`,
+	);
+	await handlePullRequestGeneric(payload);
+};
 
-// This sets up a middleware function to handle incoming webhook events.
-//
-// Octokit's `createNodeMiddleware` function takes care of generating this middleware function for you. The resulting middleware function will:
-//
-//    - Check the signature of the incoming webhook event to make sure that it matches your webhook secret. This verifies that the incoming webhook event is a valid GitHub event.
-//    - Parse the webhook event payload and identify the type of event.
-//    - Trigger the corresponding webhook event handler.
-const middleware = createNodeMiddleware(app.webhooks, { path });
-
-// This creates a Node.js server that listens for incoming HTTP requests (including webhook payloads from GitHub) on the specified port. When the server receives a request, it executes the `middleware` function that you defined earlier. Once the server is running, it logs messages to the console to indicate that it is listening.
-http.createServer(middleware).listen(port, () => {
-	console.log(`Server is listening for events at: ${localWebhookUrl}`);
-	console.log("Press Ctrl + C to quit.");
-});
