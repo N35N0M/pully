@@ -192,13 +192,7 @@ const ensureStateIsInitializedForRepoAndPr = (
 	prNumber: number,
 ) => {
 	if (!(repoFullName in pullyRepodataCache)) {
-		pullyRepodataCache[repoFullName] = { prData: {} };
-	}
-
-	const specificRepoData = pullyRepodataCache[repoFullName].prData;
-
-	if (!(prNumber in specificRepoData)) {
-		specificRepoData[prNumber] = { reviews: {}, message: undefined };
+		pullyRepodataCache[repoFullName] = { prData: {[prNumber]: { reviews: {}, message: undefined }} };
 	}
 };
 
@@ -266,12 +260,10 @@ const handlePullRequestReviewRequested = async (
 	pullyRepodataCache: RepoData,
 	payload: PullRequestReviewRequestedEvent,
 ) => {
-	const repoFullName = payload.repository.full_name;
-	const prNumber = payload.pull_request.number;
 	const prDataCache = getPrDataCache(
 		pullyRepodataCache,
-		repoFullName,
-		prNumber,
+		payload.repository.full_name,
+		payload.pull_request.number,
 	);
 
 	let author: AuthorInfo = { slackMemberId: "", githubUsername: "" };
@@ -292,20 +284,7 @@ const handlePullRequestReviewRequested = async (
 		return;
 	}
 
-	const prData = payload.pull_request;
-	const slackMessage = constructDenseSlackMessage(
-		pullyRepodataCache,
-		author,
-		prData.title,
-		prNumber,
-		prData.state,
-		repoFullName,
-		prData.html_url,
-		prData.additions,
-		prData.deletions,
-	);
-
-	await postToSlack(slackMessage, prDataCache);
+	handlePullRequestGeneric(pullyRepodataCache, payload);
 };
 
 const handlePullRequestGeneric = async (
