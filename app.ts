@@ -12,7 +12,6 @@ import { WebClient } from "@slack/web-api";
 const token = process.env.SLACK_TOKEN as string;
 const testChannel = process.env.SLACK_CHANNEL as string;
 
-
 type PrNumber = number;
 type SlackMessageTimestamp = string;
 
@@ -25,9 +24,6 @@ interface AuthorInfo {
 	firstName?: string;
 }
 
-/**
- * Posts one message per PR to a specified channel, assuming that the pullyMessageCache persists between CI runs.
- */
 const postToSlack = async (
 	slackChannelId: string,
 	slackMessageContent: string,
@@ -51,7 +47,6 @@ const postToSlack = async (
 		}
 	}
 };
-
 
 const getAuthorInfoFromGithubLogin = (
 	authorInfos: AuthorInfo[],
@@ -93,11 +88,11 @@ type GithubUsername = string;
 type Reviewers = Record<GithubUsername, ReviewerState>;
 
 interface IPrData {
-	reviews: Reviewers,
+	reviews: Reviewers;
 	/**
 	 * This repo explicitly assumes one slack message (and thus channel) per pull request
 	 */
-	message?: SlackMessageTimestamp
+	message?: SlackMessageTimestamp;
 }
 
 type PrData = Record<PrNumber, IPrData>;
@@ -118,7 +113,8 @@ interface IRepoData {
 }
 
 // TODO lets not do god states to make function signatures easier
-let repoData: Record<RepoFullname, IRepoData> = {};
+type RepoData = Record<RepoFullname, IRepoData>;
+let repoData: RepoData = {};
 
 try {
 	// TODO: Should sanitize json data
@@ -127,8 +123,8 @@ try {
 	console.warn("No data.json found, starting state from scratch...");
 }
 
-const saveMessageCacheAndReviewStates = () => {
-	fs.writeFileSync(repodatafile, JSON.stringify(repoData));
+const saveMessageCacheAndReviewStates = (repoDataToSave: RepoData) => {
+	fs.writeFileSync(repodatafile, JSON.stringify(repoDataToSave));
 	// TODO need logic to save/load to orphan branch...
 	console.log("Saved state");
 };
@@ -137,6 +133,7 @@ const saveMessageCacheAndReviewStates = () => {
  * Constructs a one-line slack message, meant to be invoked whenever any of the arguments change
  */
 const constructDenseSlackMessage = (
+	pullyRepodataCache: RepoData,
 	author: AuthorInfo,
 	prTitle: string,
 	prNumber: PrNumber,
@@ -167,8 +164,8 @@ const constructDenseSlackMessage = (
 
 	let text = `<${prUrl}|[${repoFullname}] ${prTitle} (#${prNumber})> ${linediff} by ${authorToUse}`;
 
-	if (repoFullname in repoData) {
-		const specificRepoData = repoData[repoFullname];
+	if (repoFullname in pullyRepodataCache) {
+		const specificRepoData = pullyRepodataCache[repoFullname];
 
 		if (prNumber in specificRepoData.prData) {
 			const prReviewData = specificRepoData.prData[prNumber];
@@ -192,7 +189,7 @@ const constructDenseSlackMessage = (
 						break;
 					case "review_requested":
 						// Only give @ mentions when a review is requested to avoid notification spam
-						review_requests.add(`<@${reviewerData.slackMemberId}>`); 
+						review_requests.add(`<@${reviewerData.slackMemberId}>`);
 				}
 			}
 
@@ -228,31 +225,45 @@ const constructDenseSlackMessage = (
  * @param prNumber
  */
 const ensureStateIsInitializedForRepoAndPr = (
+	pullyRepodataCache: RepoData,
 	repoFullName: string,
 	prNumber: number,
 ) => {
-	if (!(repoFullName in repoData)) {
-		repoData[repoFullName] = {prData: {}}
+	if (!(repoFullName in pullyRepodataCache)) {
+		pullyRepodataCache[repoFullName] = { prData: {} };
 	}
 
-	const specificRepoData = repoData[repoFullName].prData;
+	const specificRepoData = pullyRepodataCache[repoFullName].prData;
 
 	if (!(prNumber in specificRepoData)) {
-		specificRepoData[prNumber] = {reviews: {}, message: undefined};
+		specificRepoData[prNumber] = { reviews: {}, message: undefined };
 	}
 };
 
-const getPrDataCache = (repoFullName: RepoFullname, prNumber: PrNumber): IPrData => {
-	ensureStateIsInitializedForRepoAndPr(repoFullName, prNumber)
-	return repoData[repoFullName].prData[prNumber];
-}
+const getPrDataCache = (
+	pullyRepodataCache: RepoData,
+	repoFullName: RepoFullname,
+	prNumber: PrNumber,
+): IPrData => {
+	ensureStateIsInitializedForRepoAndPr(
+		pullyRepodataCache,
+		repoFullName,
+		prNumber,
+	);
+	return pullyRepodataCache[repoFullName].prData[prNumber];
+};
 
 const handlePullRequestReviewSubmitted = async (
+	pullyRepodataCache: RepoData,
 	payload: PullRequestReviewSubmittedEvent,
 ) => {
 	console.log("Received a pull request review submitted event");
 
-	const specificPrData = getPrDataCache(payload.repository.full_name, payload.pull_request.number)
+	const specificPrData = getPrDataCache(
+		pullyRepodataCache,
+		payload.repository.full_name,
+		payload.pull_request.number,
+	);
 
 	const author = getAuthorInfoFromGithubLogin(
 		authors,
@@ -275,6 +286,7 @@ const handlePullRequestReviewSubmitted = async (
 
 	const prData = payload.pull_request;
 	const slackMessage = constructDenseSlackMessage(
+		pullyRepodataCache,
 		author,
 		prData.title,
 		prData.number,
@@ -286,18 +298,20 @@ const handlePullRequestReviewSubmitted = async (
 	);
 
 	await postToSlack(testChannel, slackMessage, specificPrData);
-	saveMessageCacheAndReviewStates();
+	saveMessageCacheAndReviewStates(repoData);
 };
 
-
-
-
 const handlePullRequestReviewRequested = async (
+	pullyRepodataCache: RepoData,
 	payload: PullRequestReviewRequestedEvent,
 ) => {
-	const repoFullName = payload.repository.full_name
-	const prNumber = payload.pull_request.number
-	const prDataCache = getPrDataCache(repoFullName, prNumber);
+	const repoFullName = payload.repository.full_name;
+	const prNumber = payload.pull_request.number;
+	const prDataCache = getPrDataCache(
+		pullyRepodataCache,
+		repoFullName,
+		prNumber,
+	);
 
 	let author: AuthorInfo = { slackMemberId: "", githubUsername: "" };
 	if ("requested_reviewer" in payload) {
@@ -319,6 +333,7 @@ const handlePullRequestReviewRequested = async (
 
 	const prData = payload.pull_request;
 	const slackMessage = constructDenseSlackMessage(
+		pullyRepodataCache,
 		author,
 		prData.title,
 		prNumber,
@@ -330,18 +345,26 @@ const handlePullRequestReviewRequested = async (
 	);
 
 	await postToSlack(testChannel, slackMessage, prDataCache);
-	saveMessageCacheAndReviewStates();
+	saveMessageCacheAndReviewStates(repoData);
 };
 
-const handlePullRequestGeneric = async (payload: PullRequestEvent) => {
-	const repoFullName = payload.repository.full_name
-	const prNumber = payload.pull_request.number
-	const prDataCache = getPrDataCache(repoFullName, prNumber);
+const handlePullRequestGeneric = async (
+	pullyRepodataCache: RepoData,
+	payload: PullRequestEvent,
+) => {
+	const repoFullName = payload.repository.full_name;
+	const prNumber = payload.pull_request.number;
+	const prDataCache = getPrDataCache(
+		pullyRepodataCache,
+		repoFullName,
+		prNumber,
+	);
 	const prData = payload.pull_request;
 
 	const author = getAuthorInfoFromGithubLogin(authors, prData.user.login);
 
 	const slackMessage = constructDenseSlackMessage(
+		pullyRepodataCache,
 		author,
 		prData.title,
 		prData.number,
@@ -352,18 +375,23 @@ const handlePullRequestGeneric = async (payload: PullRequestEvent) => {
 		prData.deletions,
 	);
 	await postToSlack(testChannel, slackMessage, prDataCache);
-	saveMessageCacheAndReviewStates();
-}
-
-const handlePullRequestOpened = async (payload: PullRequestOpenedEvent) => {
-	console.log(`Received a pull request event for #${payload.pull_request.url}`);
-	await handlePullRequestGeneric(payload);
+	saveMessageCacheAndReviewStates(repoData);
 };
 
-const handlePullRequestClosed = async (payload: PullRequestClosedEvent) => {
+const handlePullRequestOpened = async (
+	pullyRepodataCache: RepoData,
+	payload: PullRequestOpenedEvent,
+) => {
+	console.log(`Received a pull request event for #${payload.pull_request.url}`);
+	await handlePullRequestGeneric(pullyRepodataCache, payload);
+};
+
+const handlePullRequestClosed = async (
+	pullyRepodataCache: RepoData,
+	payload: PullRequestClosedEvent,
+) => {
 	console.log(
 		`Received a pull request closed event for ${payload.pull_request.url}`,
 	);
-	await handlePullRequestGeneric(payload);
+	await handlePullRequestGeneric(pullyRepodataCache, payload);
 };
-
