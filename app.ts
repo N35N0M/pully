@@ -42,22 +42,23 @@ interface IRepoData {
 }
 
 const postToSlack = async (
-	slackChannelId: string,
 	slackMessageContent: string,
 	pullyPrDataCache: IPrData,
 ) => {
+	const token = process.env.SLACK_TOKEN as string;
+	const channel = process.env.SLACK_CHANNEL as string;
 	const web = new WebClient(token);
 
 	if (pullyPrDataCache.message) {
 		web.chat.update({
 			text: slackMessageContent,
-			channel: slackChannelId,
+			channel: channel,
 			ts: pullyPrDataCache.message,
 		});
 	} else {
 		const value = await web.chat.postMessage({
 			text: slackMessageContent,
-			channel: slackChannelId,
+			channel: channel,
 		});
 		if (value.ts) {
 			pullyPrDataCache.message = value.ts;
@@ -93,12 +94,6 @@ const authors: AuthorInfo[] = [
 		firstName: "Kris",
 	},
 ];
-
-const saveMessageCacheAndReviewStates = (repoDataToSave: RepoData) => {
-	fs.writeFileSync(repodatafile, JSON.stringify(repoDataToSave));
-	// TODO need logic to save/load to orphan branch...
-	console.log("Saved state");
-};
 
 /**
  * Constructs a one-line slack message, meant to be invoked whenever any of the arguments change
@@ -264,8 +259,7 @@ const handlePullRequestReviewSubmitted = async (
 		undefined,
 	);
 
-	await postToSlack(testChannel, slackMessage, specificPrData);
-	saveMessageCacheAndReviewStates(repoData);
+	await postToSlack(slackMessage, specificPrData);
 };
 
 const handlePullRequestReviewRequested = async (
@@ -311,8 +305,7 @@ const handlePullRequestReviewRequested = async (
 		prData.deletions,
 	);
 
-	await postToSlack(testChannel, slackMessage, prDataCache);
-	saveMessageCacheAndReviewStates(repoData);
+	await postToSlack(slackMessage, prDataCache);
 };
 
 const handlePullRequestGeneric = async (
@@ -341,8 +334,7 @@ const handlePullRequestGeneric = async (
 		prData.additions,
 		prData.deletions,
 	);
-	await postToSlack(testChannel, slackMessage, prDataCache);
-	saveMessageCacheAndReviewStates(repoData);
+	await postToSlack(slackMessage, prDataCache);
 };
 
 const handlePullRequestOpened = async (
@@ -363,21 +355,33 @@ const handlePullRequestClosed = async (
 	await handlePullRequestGeneric(pullyRepodataCache, payload);
 };
 
-/**
- * The reason why we keep a local state instead of just scraping repos for data all the time is that it
- * requires more access privileges (instead of just being able to see pr-related webhook payloads)
- */
 const repodatafile = "repodata.json";
 
-// This assigns the values of your environment variables to local variables.
-const token = process.env.SLACK_TOKEN as string;
-const testChannel = process.env.SLACK_CHANNEL as string;
+const loadPullyState = (): RepoData => {
+	let repoData: RepoData = {};
 
-let repoData: RepoData = {};
+	// TODO: fetch state file from orphan branch
 
-try {
-	// TODO: Should sanitize json data
-	repoData = JSON.parse(readFileSync(repodatafile, "utf-8"));
-} catch {
-	console.warn("No data.json found, starting state from scratch...");
+	try {
+		// TODO: Should sanitize json data
+		repoData = JSON.parse(readFileSync(repodatafile, "utf-8"));
+	} catch {
+		console.warn("No data.json found, starting state from scratch...");
+	}
+
+	return repoData;
 }
+
+const savePullyState = (pullyState: RepoData) => {
+	fs.writeFileSync(repodatafile, JSON.stringify(pullyState));
+	// TODO: Need to write to orphan branch and push to remote
+	console.log("Saved state");
+};
+
+
+
+const repoData = loadPullyState();
+
+// TODO: Invoke correct handler based on type
+
+savePullyState(repoData);
