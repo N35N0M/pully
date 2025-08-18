@@ -8,20 +8,37 @@ import {
 } from "@octokit/webhooks-types";
 import { WebClient } from "@slack/web-api";
 
-// This assigns the values of your environment variables to local variables.
-const token = process.env.SLACK_TOKEN as string;
-const testChannel = process.env.SLACK_CHANNEL as string;
-
 type PrNumber = number;
 type SlackMessageTimestamp = string;
+type PrState = "open" | "closed" | "merged";
+type ReviewerState =
+	| "approved"
+	| "requested-changes"
+	| "review_requested"
+	| "dismissed";
+
+type GithubUsername = string;
+type Reviewers = Record<GithubUsername, ReviewerState>;
+type PrData = Record<PrNumber, IPrData>;
+type RepoFullname = string; 
+type RepoData = Record<RepoFullname, IRepoData>;
 
 interface AuthorInfo {
-	/**
-	 * The github username (i.e. "login" field in the User API)
-	 */
 	githubUsername?: string;
 	slackMemberId?: string;
 	firstName?: string;
+}
+
+interface IPrData {
+	reviews: Reviewers;
+	/**
+	 * This repo explicitly assumes one slack message (and thus channel) per pull request
+	 */
+	message?: SlackMessageTimestamp;
+}
+
+interface IRepoData {
+	prData: PrData;
 }
 
 const postToSlack = async (
@@ -76,52 +93,6 @@ const authors: AuthorInfo[] = [
 		firstName: "Kris",
 	},
 ];
-
-type PrState = "open" | "closed" | "merged";
-type ReviewerState =
-	| "approved"
-	| "requested-changes"
-	| "review_requested"
-	| "dismissed";
-
-type GithubUsername = string;
-type Reviewers = Record<GithubUsername, ReviewerState>;
-
-interface IPrData {
-	reviews: Reviewers;
-	/**
-	 * This repo explicitly assumes one slack message (and thus channel) per pull request
-	 */
-	message?: SlackMessageTimestamp;
-}
-
-type PrData = Record<PrNumber, IPrData>;
-
-/**
- * The full name of the repo, i.e. <owner/repo name>, where owner is either a github user or a github organization
- */
-type RepoFullname = string;
-
-/**
- * The reason why we keep a local state instead of just scraping repos for data all the time is that it
- * requires more access privileges (instead of just being able to see pr-related webhook payloads)
- */
-const repodatafile = "repodata.json";
-
-interface IRepoData {
-	prData: PrData;
-}
-
-// TODO lets not do god states to make function signatures easier
-type RepoData = Record<RepoFullname, IRepoData>;
-let repoData: RepoData = {};
-
-try {
-	// TODO: Should sanitize json data
-	repoData = JSON.parse(readFileSync(repodatafile, "utf-8"));
-} catch {
-	console.warn("No data.json found, starting state from scratch...");
-}
 
 const saveMessageCacheAndReviewStates = (repoDataToSave: RepoData) => {
 	fs.writeFileSync(repodatafile, JSON.stringify(repoDataToSave));
@@ -220,10 +191,6 @@ const constructDenseSlackMessage = (
 	return text;
 };
 
-/**
- * @param repoFullName
- * @param prNumber
- */
 const ensureStateIsInitializedForRepoAndPr = (
 	pullyRepodataCache: RepoData,
 	repoFullName: string,
@@ -395,3 +362,22 @@ const handlePullRequestClosed = async (
 	);
 	await handlePullRequestGeneric(pullyRepodataCache, payload);
 };
+
+/**
+ * The reason why we keep a local state instead of just scraping repos for data all the time is that it
+ * requires more access privileges (instead of just being able to see pr-related webhook payloads)
+ */
+const repodatafile = "repodata.json";
+
+// This assigns the values of your environment variables to local variables.
+const token = process.env.SLACK_TOKEN as string;
+const testChannel = process.env.SLACK_CHANNEL as string;
+
+let repoData: RepoData = {};
+
+try {
+	// TODO: Should sanitize json data
+	repoData = JSON.parse(readFileSync(repodatafile, "utf-8"));
+} catch {
+	console.warn("No data.json found, starting state from scratch...");
+}
