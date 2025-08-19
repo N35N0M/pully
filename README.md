@@ -26,7 +26,7 @@ Future fluff:
 - Post a summary every morning of PRs that are still left hanging (With link to the existing slack message to avoid duplicated state?)
 
 Assumptions:
-- You are ok with having an orphaned branch called "pully-state-data-that-will-get-force-updated" in your branch managed by pully.
+- You are ok with having an orphaned branch called "pully-persistent-state-do-not-use-for-coding" in your branch managed by pully.
   - This is to avoid needing external infrastructure in order to get this functionality. Less complexity and less risks.
   - Cache/artifacting in github doesnt work reliably/isnt easy to share accross workflows. An orphan branch is more technology agnostic.
 

@@ -8,6 +8,7 @@ import {
 } from "@octokit/webhooks-types";
 import { WebClient } from "@slack/web-api";
 import assert from "assert";
+import { Octokit } from "octokit";
 
 type PrNumber = number;
 type SlackMessageTimestamp = string;
@@ -21,12 +22,12 @@ type ReviewerState =
 type GithubUsername = string;
 type Reviewers = Record<GithubUsername, ReviewerState>;
 type PrData = Record<PrNumber, IPrData>;
-type RepoFullname = string; 
+type RepoFullname = string;
 type RepoData = Record<RepoFullname, IRepoData>;
 type PullyData = {
-	repodata: RepoData
-	known_authors: AuthorInfo[]
-}
+	repodata: RepoData;
+	known_authors: AuthorInfo[];
+};
 
 interface AuthorInfo {
 	githubUsername?: string;
@@ -52,8 +53,11 @@ const postToSlack = async (
 ) => {
 	const token = process.env.SLACK_TOKEN as string;
 	const channel = process.env.SLACK_CHANNEL as string;
-	assert(token !== undefined, "SLACK_TOKEN was not defined in the environment")
-	assert(channel !== undefined, "SLACK_CHANNEL (the slack channel id) was not defined in the environment")
+	assert(token !== undefined, "SLACK_TOKEN was not defined in the environment");
+	assert(
+		channel !== undefined,
+		"SLACK_CHANNEL (the slack channel id) was not defined in the environment",
+	);
 	const web = new WebClient(token);
 
 	if (pullyPrDataCache.message) {
@@ -91,8 +95,6 @@ const getAuthorInfoFromGithubLogin = (
 		firstName: undefined,
 	};
 };
-
-
 
 const constructSlackMessage = (
 	pullyRepodataCache: PullyData,
@@ -137,7 +139,10 @@ const constructSlackMessage = (
 			const review_requests = new Set();
 
 			for (let [reviewer, state] of Object.entries(prReviewData.reviews)) {
-				const reviewerData = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, reviewer);
+				const reviewerData = getAuthorInfoFromGithubLogin(
+					pullyRepodataCache.known_authors,
+					reviewer,
+				);
 				switch (state) {
 					case "approved":
 						approvers.add(
@@ -188,7 +193,9 @@ const ensureStateIsInitializedForRepoAndPr = (
 	prNumber: number,
 ) => {
 	if (!(repoFullName in pullyRepodataCache)) {
-		pullyRepodataCache[repoFullName] = { prData: {[prNumber]: { reviews: {}, message: undefined }} };
+		pullyRepodataCache[repoFullName] = {
+			prData: { [prNumber]: { reviews: {}, message: undefined } },
+		};
 	}
 };
 
@@ -223,12 +230,12 @@ const handlePullRequestReviewSubmitted = async (
 	);
 
 	// Store only a public identifier in the persistent state
-	console.log("hello")
-	console.log(author)
+	console.log("hello");
+	console.log(author);
 	if (author.githubUsername) {
 		switch (payload.review.state) {
 			case "approved":
-				console.log("Hai")
+				console.log("Hai");
 				specificPrData.reviews[author.githubUsername] = "approved";
 				break;
 			case "changes_requested":
@@ -299,7 +306,10 @@ const handlePullRequestGeneric = async (
 	);
 	const prData = payload.pull_request;
 
-	const author = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, prData.user.login);
+	const author = getAuthorInfoFromGithubLogin(
+		pullyRepodataCache.known_authors,
+		prData.user.login,
+	);
 
 	const slackMessage = constructSlackMessage(
 		pullyRepodataCache,
@@ -319,7 +329,9 @@ const handlePullRequestOpened = async (
 	pullyRepodataCache: PullyData,
 	payload: PullRequestOpenedEvent,
 ) => {
-	console.log(`Received a pull request open event for #${payload.pull_request.url}`);
+	console.log(
+		`Received a pull request open event for #${payload.pull_request.url}`,
+	);
 	await handlePullRequestGeneric(pullyRepodataCache, payload);
 };
 
@@ -333,70 +345,123 @@ const handlePullRequestClosed = async (
 	await handlePullRequestGeneric(pullyRepodataCache, payload);
 };
 
-
 // TODO make a main out of this
 
 // LOAD state
-const repodatafile = "pullystate.json";
 
-const loadPullyState = (): PullyData => {
+const loadPullyState = async (): Promise<PullyData> => {
 	let repoData: PullyData;
 
 	// TODO: fetch state file from orphan branch
-
+	const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+	assert(
+		GITHUB_TOKEN !== undefined,
+		"GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch",
+	);
+	const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 	try {
-		// TODO: Should sanitize json data
-		repoData = JSON.parse(readFileSync(repodatafile, "utf-8"));
+		// TODO: Should sanitize json data with a schema
+		const pullyStateRaw = await octokit.request(
+			"GET /repos/{owner}/{repo}/contents/{path}",
+			{
+				repo: "pully",
+				owner: "N35N0M",
+				path: "pullystate.json",
+				ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+			},
+		);
+		// @ts-expect-error need to assert that this is file somehow
+		repoData = JSON.parse(atob(pullyStateRaw.data.content));
 		return repoData;
-	} catch {
-		console.warn("No data.json found, starting state from scratch...");
-		return {repodata: {}, known_authors: []}
+	} catch (e) {
+		throw e;
 	}
+};
 
-	
-}
+const savePullyState = async (pullyState: PullyData) => {
+	const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+	const pullyStateRaw = await octokit.request(
+		"GET /repos/{owner}/{repo}/contents/{path}",
+		{
+			repo: "pully",
+			owner: "N35N0M",
+			path: "pullystate.json",
+			ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+		},
+	);
+	console.log(pullyStateRaw)
 
-const savePullyState = (pullyState: PullyData) => {
-	fs.writeFileSync(repodatafile, JSON.stringify(pullyState));
-	// TODO: Need to write to orphan branch and push to remote
-	// https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#create-or-update-file-contents ?
+	// @ts-expect-error need to assert that this is file somehow
+	const sha = pullyStateRaw.data.sha;
+	console.log(sha)
+
+	await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
+		owner: "N35N0M",
+		repo: "pully",
+		path: "pullystate.json",
+		branch: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+		message: "Pully state update",
+		committer: {
+			name: "Pully",
+			email: "kris@bitheim.no",
+		},
+		content: btoa(JSON.stringify(pullyState)),
+		sha: sha,
+		headers: {
+			"X-GitHub-Api-Version": "2022-11-28",
+		},
+	});
 	console.log("Saved state");
 };
 
-const repoData = loadPullyState();
+loadPullyState().then((repoData) => {
+	const getEventData = ():
+		| PullRequestReviewSubmittedEvent
+		| PullRequestOpenedEvent
+		| PullRequestReviewRequestedEvent
+		| PullRequestClosedEvent => {
+		let eventData:
+			| PullRequestReviewSubmittedEvent
+			| PullRequestOpenedEvent
+			| PullRequestReviewRequestedEvent
+			| PullRequestClosedEvent;
 
-const getEventData = (): PullRequestReviewSubmittedEvent | PullRequestOpenedEvent | PullRequestReviewRequestedEvent | PullRequestClosedEvent => {
-	let eventData: PullRequestReviewSubmittedEvent | PullRequestOpenedEvent | PullRequestReviewRequestedEvent | PullRequestClosedEvent;
+		// TODO: fetch via github state variable
+		try {
+			// TODO: Should sanitize json data
+			const eventJsonFile = process.env.EVENT_JSON_FILE as string;
+			eventData = JSON.parse(readFileSync(eventJsonFile, "utf-8"));
+		} catch {
+			console.warn("No data.json found, starting state from scratch...");
+			throw Error("Could not read the event data");
+		}
 
-	// TODO: fetch state file from orphan branch
-	// https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#get-repository-content ?
-	try {
-		// TODO: Should sanitize json data
-		const eventJsonFile = process.env.EVENT_JSON_FILE as string;
-		eventData = JSON.parse(readFileSync(eventJsonFile, "utf-8"));
-	} catch {
-		console.warn("No data.json found, starting state from scratch...");
-		throw Error("Could not read the event data");
+		return eventData;
+	};
+
+	const data = getEventData();
+
+	// Then handle provided event payload (TODO to make this not strictly github based...)
+	switch (data.action) {
+		case "submitted":
+			handlePullRequestReviewSubmitted(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
+		case "closed":
+			handlePullRequestClosed(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
+		case "opened":
+			handlePullRequestOpened(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
+		case "review_requested":
+			handlePullRequestReviewRequested(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
 	}
-
-	return eventData;
-}
-
-const data = getEventData();
-
-// Then handle provided event payload (TODO to make this not strictly github based...)
-switch (data.action) {
-	case "submitted":
-		handlePullRequestReviewSubmitted(repoData, data).then(() => savePullyState(repoData));
-		break;
-	case "closed":
-		handlePullRequestClosed(repoData, data).then(() => savePullyState(repoData));
-		break
-	case "opened":
-		handlePullRequestOpened(repoData, data).then(() => savePullyState(repoData));
-		break
-	case "review_requested":
-		handlePullRequestReviewRequested(repoData, data).then(() => savePullyState(repoData));
-		break
-}
-
+});
