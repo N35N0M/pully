@@ -23,6 +23,10 @@ type Reviewers = Record<GithubUsername, ReviewerState>;
 type PrData = Record<PrNumber, IPrData>;
 type RepoFullname = string; 
 type RepoData = Record<RepoFullname, IRepoData>;
+type PullyData = {
+	repodata: RepoData
+	known_authors: AuthorInfo[]
+}
 
 interface AuthorInfo {
 	githubUsername?: string;
@@ -88,18 +92,10 @@ const getAuthorInfoFromGithubLogin = (
 	};
 };
 
-// TODO: Fix function that loads this info from env and populates authorinfos so we dont have to keep this in the src
-const authors: AuthorInfo[] = [
-	{ githubUsername: "N35N0M", slackMemberId: "U08FWFQPT60", firstName: "Kris" },
-	{
-		githubUsername: "kristoffer-monsen-bulder",
-		slackMemberId: "U08FWFQPT60",
-		firstName: "Kris",
-	},
-];
+
 
 const constructSlackMessage = (
-	pullyRepodataCache: RepoData,
+	pullyRepodataCache: PullyData,
 	author: AuthorInfo,
 	prTitle: string,
 	prNumber: PrNumber,
@@ -130,8 +126,8 @@ const constructSlackMessage = (
 
 	let text = `<${prUrl}|[${repoFullname}] ${prTitle} (#${prNumber})> ${linediff} by ${authorToUse}`;
 
-	if (repoFullname in pullyRepodataCache) {
-		const specificRepoData = pullyRepodataCache[repoFullname];
+	if (repoFullname in pullyRepodataCache.repodata) {
+		const specificRepoData = pullyRepodataCache.repodata[repoFullname];
 
 		if (prNumber in specificRepoData.prData) {
 			const prReviewData = specificRepoData.prData[prNumber];
@@ -141,7 +137,7 @@ const constructSlackMessage = (
 			const review_requests = new Set();
 
 			for (let [reviewer, state] of Object.entries(prReviewData.reviews)) {
-				const reviewerData = getAuthorInfoFromGithubLogin(authors, reviewer);
+				const reviewerData = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, reviewer);
 				switch (state) {
 					case "approved":
 						approvers.add(
@@ -210,26 +206,29 @@ const getPrDataCache = (
 };
 
 const handlePullRequestReviewSubmitted = async (
-	pullyRepodataCache: RepoData,
+	pullyRepodataCache: PullyData,
 	payload: PullRequestReviewSubmittedEvent,
 ) => {
 	console.log("Received a pull request review submitted event");
 
 	const specificPrData = getPrDataCache(
-		pullyRepodataCache,
+		pullyRepodataCache.repodata,
 		payload.repository.full_name,
 		payload.pull_request.number,
 	);
 
 	const author = getAuthorInfoFromGithubLogin(
-		authors,
+		pullyRepodataCache.known_authors,
 		payload.review.user?.login ?? "undefined",
 	);
 
 	// Store only a public identifier in the persistent state
+	console.log("hello")
+	console.log(author)
 	if (author.githubUsername) {
 		switch (payload.review.state) {
 			case "approved":
+				console.log("Hai")
 				specificPrData.reviews[author.githubUsername] = "approved";
 				break;
 			case "changes_requested":
@@ -257,11 +256,11 @@ const handlePullRequestReviewSubmitted = async (
 };
 
 const handlePullRequestReviewRequested = async (
-	pullyRepodataCache: RepoData,
+	pullyRepodataCache: PullyData,
 	payload: PullRequestReviewRequestedEvent,
 ) => {
 	const prDataCache = getPrDataCache(
-		pullyRepodataCache,
+		pullyRepodataCache.repodata,
 		payload.repository.full_name,
 		payload.pull_request.number,
 	);
@@ -269,7 +268,7 @@ const handlePullRequestReviewRequested = async (
 	let author: AuthorInfo = { slackMemberId: "", githubUsername: "" };
 	if ("requested_reviewer" in payload) {
 		author = getAuthorInfoFromGithubLogin(
-			authors,
+			pullyRepodataCache.known_authors,
 			payload.requested_reviewer.login,
 		);
 
@@ -288,19 +287,19 @@ const handlePullRequestReviewRequested = async (
 };
 
 const handlePullRequestGeneric = async (
-	pullyRepodataCache: RepoData,
+	pullyRepodataCache: PullyData,
 	payload: PullRequestEvent,
 ) => {
 	const repoFullName = payload.repository.full_name;
 	const prNumber = payload.pull_request.number;
 	const prDataCache = getPrDataCache(
-		pullyRepodataCache,
+		pullyRepodataCache.repodata,
 		repoFullName,
 		prNumber,
 	);
 	const prData = payload.pull_request;
 
-	const author = getAuthorInfoFromGithubLogin(authors, prData.user.login);
+	const author = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, prData.user.login);
 
 	const slackMessage = constructSlackMessage(
 		pullyRepodataCache,
@@ -317,7 +316,7 @@ const handlePullRequestGeneric = async (
 };
 
 const handlePullRequestOpened = async (
-	pullyRepodataCache: RepoData,
+	pullyRepodataCache: PullyData,
 	payload: PullRequestOpenedEvent,
 ) => {
 	console.log(`Received a pull request open event for #${payload.pull_request.url}`);
@@ -325,7 +324,7 @@ const handlePullRequestOpened = async (
 };
 
 const handlePullRequestClosed = async (
-	pullyRepodataCache: RepoData,
+	pullyRepodataCache: PullyData,
 	payload: PullRequestClosedEvent,
 ) => {
 	console.log(
@@ -334,30 +333,35 @@ const handlePullRequestClosed = async (
 	await handlePullRequestGeneric(pullyRepodataCache, payload);
 };
 
-const repodatafile = "repodata.json";
 
-const loadPullyState = (): RepoData => {
-	let repoData: RepoData = {};
+// TODO make a main out of this
+
+// LOAD state
+const repodatafile = "pullystate.json";
+
+const loadPullyState = (): PullyData => {
+	let repoData: PullyData;
 
 	// TODO: fetch state file from orphan branch
 
 	try {
 		// TODO: Should sanitize json data
 		repoData = JSON.parse(readFileSync(repodatafile, "utf-8"));
+		return repoData;
 	} catch {
 		console.warn("No data.json found, starting state from scratch...");
+		return {repodata: {}, known_authors: []}
 	}
 
-	return repoData;
+	
 }
 
-const savePullyState = (pullyState: RepoData) => {
+const savePullyState = (pullyState: PullyData) => {
 	fs.writeFileSync(repodatafile, JSON.stringify(pullyState));
 	// TODO: Need to write to orphan branch and push to remote
+	// https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#create-or-update-file-contents ?
 	console.log("Saved state");
 };
-
-
 
 const repoData = loadPullyState();
 
@@ -365,7 +369,7 @@ const getEventData = (): PullRequestReviewSubmittedEvent | PullRequestOpenedEven
 	let eventData: PullRequestReviewSubmittedEvent | PullRequestOpenedEvent | PullRequestReviewRequestedEvent | PullRequestClosedEvent;
 
 	// TODO: fetch state file from orphan branch
-
+	// https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#get-repository-content ?
 	try {
 		// TODO: Should sanitize json data
 		const eventJsonFile = process.env.EVENT_JSON_FILE as string;
@@ -379,8 +383,8 @@ const getEventData = (): PullRequestReviewSubmittedEvent | PullRequestOpenedEven
 }
 
 const data = getEventData();
-console.log(data)
 
+// Then handle provided event payload (TODO to make this not strictly github based...)
 switch (data.action) {
 	case "submitted":
 		handlePullRequestReviewSubmitted(repoData, data).then(() => savePullyState(repoData));
