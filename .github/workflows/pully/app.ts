@@ -3,6 +3,7 @@ import {
 	PullRequestClosedEvent,
 	PullRequestEvent,
 	PullRequestOpenedEvent,
+	PullRequestReopenedEvent,
 	PullRequestReviewRequestedEvent,
 	PullRequestReviewSubmittedEvent,
 } from "@octokit/webhooks-types";
@@ -12,14 +13,14 @@ import { Octokit } from "octokit";
 
 // Environment variables
 // TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
-const GITHUB_OWNER = process.env.GITHUB_OWNER;
+const GITHUB_REPOSITORY_OWNER = process.env.GITHUB_REPOSITORY_OWNER;
 const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
 
 assert(
-	!!GITHUB_OWNER,
-	"GITHUB_OWNER, i.e. the owner of the repo this is running for, was unexpectedly undefined in the runtime environment!",
+	!!GITHUB_REPOSITORY_OWNER,
+	"GITHUB_REPOSITORY_OWNER, i.e. the owner of the repo this is running for, was unexpectedly undefined in the runtime environment!",
 );
 assert(
 	!!GITHUB_REPOSITORY,
@@ -31,20 +32,20 @@ assert(
 );
 assert(!!GITHUB_EVENT_PATH, "GITHUB_EVENT_PATH was undefined in the environment! This should be provided by Github CI and is the same payload as the pull_request and pull_request_review webhooks: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request");
 
-const PULLY_SLACK_TOKEN = process.env.SLACK_TOKEN as string;
-const PULLY_SLACK_CHANNEL = process.env.SLACK_CHANNEL as string;
-assert(!!PULLY_SLACK_TOKEN, "SLACK_TOKEN was not defined in the environment");
+const PULLY_SLACK_TOKEN = process.env.PULLY_SLACK_TOKEN as string;
+const PULLY_SLACK_CHANNEL = process.env.PULLY_SLACK_CHANNEL as string;
+assert(!!PULLY_SLACK_TOKEN, "PULLY_SLACK_TOKEN was not defined in the environment");
 assert(
 	!!PULLY_SLACK_CHANNEL,
-	"SLACK_CHANNEL (the slack channel id) was not defined in the environment",
+	"PULLY_SLACK_CHANNEL (the slack channel id) was not defined in the environment",
 );
 
-const GITHUB_REPOSITORY_WITHOUT_OWNER = GITHUB_REPOSITORY.replace(`${GITHUB_OWNER}/`, ''); 
+const GITHUB_REPOSITORY_WITHOUT_OWNER = GITHUB_REPOSITORY.replace(`${GITHUB_REPOSITORY_OWNER}/`, ''); 
 
 // Typedefs
 type PrNumber = number;
 type SlackMessageTimestamp = string;
-type PrState = "open" | "closed" | "merged";
+type PrState = 'open' | 'closed' | 'merged' | 'queued';
 type ReviewerState =
 	| "approved"
 	| "requested-changes"
@@ -120,6 +121,7 @@ const getAuthorInfoFromGithubLogin = (
 		firstName: undefined,
 	};
 };
+
 
 const constructSlackMessage = (
 	pullyRepodataCache: PullyData,
@@ -334,12 +336,19 @@ const handlePullRequestGeneric = async (
 		prData.user.login,
 	);
 
+	let prStatus: PrState = prData.state;
+
+	if ((prData.merged_at !== null) && prStatus == "closed" ){
+		prStatus = "merged"
+	}
+
+
 	const slackMessage = constructSlackMessage(
 		pullyRepodataCache,
 		author,
 		prData.title,
 		prData.number,
-		prData.state,
+		prStatus,
 		payload.repository.full_name,
 		prData.html_url,
 		prData.additions,
@@ -351,6 +360,16 @@ const handlePullRequestGeneric = async (
 const handlePullRequestOpened = async (
 	pullyRepodataCache: PullyData,
 	payload: PullRequestOpenedEvent,
+) => {
+	console.log(
+		`Received a pull request open event for #${payload.pull_request.url}`,
+	);
+	await handlePullRequestGeneric(pullyRepodataCache, payload);
+};
+
+const handlePullRequestReopened = async (
+	pullyRepodataCache: PullyData,
+	payload: PullRequestReopenedEvent,
 ) => {
 	console.log(
 		`Received a pull request open event for #${payload.pull_request.url}`,
@@ -378,7 +397,7 @@ const loadPullyState = async (): Promise<PullyData> => {
 			"GET /repos/{owner}/{repo}/contents/{path}",
 			{
 				repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
-				owner: GITHUB_OWNER,
+				owner: GITHUB_REPOSITORY_OWNER,
 				path: "pullystate.json",
 				ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
 			},
@@ -397,7 +416,7 @@ const savePullyState = async (pullyState: PullyData) => {
 		"GET /repos/{owner}/{repo}/contents/{path}",
 		{
 			repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
-			owner: GITHUB_OWNER,
+			owner: GITHUB_REPOSITORY_OWNER,
 			path: "pullystate.json",
 			ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
 		},
@@ -407,7 +426,7 @@ const savePullyState = async (pullyState: PullyData) => {
 	const sha = pullyStateRaw.data.sha;
 
 	await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-		owner: GITHUB_OWNER,
+		owner: GITHUB_REPOSITORY_OWNER,
 		repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
 		path: "pullystate.json",
 		branch: "refs/heads/pully-persistent-state-do-not-use-for-coding",
@@ -434,12 +453,13 @@ loadPullyState().then((repoData) => {
 		| PullRequestReviewSubmittedEvent
 		| PullRequestOpenedEvent
 		| PullRequestReviewRequestedEvent
-		| PullRequestClosedEvent => {
+		| PullRequestClosedEvent
+		| PullRequestReopenedEvent => {
 		let eventData:
 			| PullRequestReviewSubmittedEvent
 			| PullRequestOpenedEvent
 			| PullRequestReviewRequestedEvent
-			| PullRequestClosedEvent;
+			| PullRequestClosedEvent | PullRequestReopenedEvent;
 
 		// TODO: fetch via github state variable
 		try {
@@ -472,6 +492,11 @@ loadPullyState().then((repoData) => {
 				savePullyState(repoData),
 			);
 			break;
+		case "reopened":
+			handlePullRequestReopened(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
 		case "review_requested":
 			handlePullRequestReviewRequested(repoData, data).then(() =>
 				savePullyState(repoData),
@@ -479,3 +504,6 @@ loadPullyState().then((repoData) => {
 			break;
 	}
 });
+
+
+// TODO: A better way to ship this for github would be to pack this inside a github action

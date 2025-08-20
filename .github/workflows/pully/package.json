@@ -5,7 +5,7 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "serve": "tsc && node app.js"
+    "pully": "tsc && node app.js"
   },
   "repository": {
     "type": "git",
@@ -20,13 +20,12 @@
   "homepage": "https://github.com/N35N0M/pully#readme",
   "dependencies": {
     "@slack/web-api": "^7.9.3",
-    "dotenv": "^17.2.1",
     "octokit": "^5.0.3",
     "typescript": "^5.9.2"
   },
   "devDependencies": {
     "@octokit/webhooks-types": "^7.6.1",
-    "@types/node": "^24.2.1",
-    "smee-client": "^4.3.1"
+    "@slack/types": "^2.15.0",
+    "@types/node": "^24.2.1"
   }
 }
