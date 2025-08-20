@@ -7,6 +7,14 @@ on:
 concurrency:
   group: pully # We can only run one instance at a time due to how the pully state works
   cancel-in-progress: false
-  steps:
-    - run: "cat $GITHUB_EVENT_PATH"
-  if: always()
+
+jobs:
+  pully:
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js version specified in .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+      - run: "cat $GITHUB_EVENT_PATH"
+    if: always()
