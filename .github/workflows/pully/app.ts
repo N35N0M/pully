@@ -3,6 +3,7 @@ import {
 	PullRequestClosedEvent,
 	PullRequestEvent,
 	PullRequestOpenedEvent,
+	PullRequestReopenedEvent,
 	PullRequestReviewRequestedEvent,
 	PullRequestReviewSubmittedEvent,
 } from "@octokit/webhooks-types";
@@ -358,6 +359,16 @@ const handlePullRequestOpened = async (
 	await handlePullRequestGeneric(pullyRepodataCache, payload);
 };
 
+const handlePullRequestReopened = async (
+	pullyRepodataCache: PullyData,
+	payload: PullRequestReopenedEvent,
+) => {
+	console.log(
+		`Received a pull request open event for #${payload.pull_request.url}`,
+	);
+	await handlePullRequestGeneric(pullyRepodataCache, payload);
+};
+
 const handlePullRequestClosed = async (
 	pullyRepodataCache: PullyData,
 	payload: PullRequestClosedEvent,
@@ -434,12 +445,13 @@ loadPullyState().then((repoData) => {
 		| PullRequestReviewSubmittedEvent
 		| PullRequestOpenedEvent
 		| PullRequestReviewRequestedEvent
-		| PullRequestClosedEvent => {
+		| PullRequestClosedEvent
+		| PullRequestReopenedEvent => {
 		let eventData:
 			| PullRequestReviewSubmittedEvent
 			| PullRequestOpenedEvent
 			| PullRequestReviewRequestedEvent
-			| PullRequestClosedEvent;
+			| PullRequestClosedEvent | PullRequestReopenedEvent;
 
 		// TODO: fetch via github state variable
 		try {
@@ -469,6 +481,11 @@ loadPullyState().then((repoData) => {
 			break;
 		case "opened":
 			handlePullRequestOpened(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
+		case "reopened":
+			handlePullRequestReopened(repoData, data).then(() =>
 				savePullyState(repoData),
 			);
 			break;
