@@ -1,8 +1,11 @@
 import fs, { readFileSync } from "fs";
 import {
 	PullRequestClosedEvent,
+	PullRequestConvertedToDraftEvent,
+	PullRequestEditedEvent,
 	PullRequestEvent,
 	PullRequestOpenedEvent,
+	PullRequestReadyForReviewEvent,
 	PullRequestReopenedEvent,
 	PullRequestReviewRequestedEvent,
 	PullRequestReviewSubmittedEvent,
@@ -377,6 +380,36 @@ const handlePullRequestReopened = async (
 	await handlePullRequestGeneric(pullyRepodataCache, payload);
 };
 
+const handlePullRequestEdited = async (
+	pullyRepodataCache: PullyData,
+	payload: PullRequestEditedEvent,
+) => {
+	console.log(
+		`Received a pull request open event for #${payload.pull_request.url}`,
+	);
+	await handlePullRequestGeneric(pullyRepodataCache, payload);
+};
+
+const handlePullRequestConvertedToDraft = async (
+	pullyRepodataCache: PullyData,
+	payload: PullRequestConvertedToDraftEvent,
+) => {
+	console.log(
+		`Received a pull request open event for #${payload.pull_request.url}`,
+	);
+	await handlePullRequestGeneric(pullyRepodataCache, payload);
+};
+
+const handlePullRequestReadyForReview = async (
+	pullyRepodataCache: PullyData,
+	payload: PullRequestReadyForReviewEvent,
+) => {
+	console.log(
+		`Received a pull request open event for #${payload.pull_request.url}`,
+	);
+	await handlePullRequestGeneric(pullyRepodataCache, payload);
+};
+
 const handlePullRequestClosed = async (
 	pullyRepodataCache: PullyData,
 	payload: PullRequestClosedEvent,
@@ -454,12 +487,17 @@ loadPullyState().then((repoData) => {
 		| PullRequestOpenedEvent
 		| PullRequestReviewRequestedEvent
 		| PullRequestClosedEvent
-		| PullRequestReopenedEvent => {
+		| PullRequestReopenedEvent
+		| PullRequestEditedEvent
+		| PullRequestConvertedToDraftEvent
+		| PullRequestReadyForReviewEvent => {
 		let eventData:
 			| PullRequestReviewSubmittedEvent
 			| PullRequestOpenedEvent
 			| PullRequestReviewRequestedEvent
-			| PullRequestClosedEvent | PullRequestReopenedEvent;
+			| PullRequestClosedEvent | PullRequestReopenedEvent 		| PullRequestEditedEvent
+		| PullRequestConvertedToDraftEvent
+		| PullRequestReadyForReviewEvent;
 
 		// TODO: fetch via github state variable
 		try {
@@ -502,6 +540,23 @@ loadPullyState().then((repoData) => {
 				savePullyState(repoData),
 			);
 			break;
+		case "converted_to_draft":
+			handlePullRequestConvertedToDraft(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
+		case "ready_for_review":
+			handlePullRequestReadyForReview(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
+		case "edited":
+			handlePullRequestEdited(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
+		default:
+			console.log(`Got unknown event to handle: ${data}`)
 	}
 });
 
