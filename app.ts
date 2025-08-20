@@ -33,10 +33,10 @@ assert(!!GITHUB_EVENT_PATH, "GITHUB_EVENT_PATH was undefined in the environment!
 
 const PULLY_SLACK_TOKEN = process.env.SLACK_TOKEN as string;
 const PULLY_SLACK_CHANNEL = process.env.SLACK_CHANNEL as string;
-assert(!!PULLY_SLACK_TOKEN, "SLACK_TOKEN was not defined in the environment");
+assert(!!PULLY_SLACK_TOKEN, "PULLY_SLACK_TOKEN was not defined in the environment");
 assert(
 	!!PULLY_SLACK_CHANNEL,
-	"SLACK_CHANNEL (the slack channel id) was not defined in the environment",
+	"PULLY_SLACK_CHANNEL (the slack channel id) was not defined in the environment",
 );
 
 const GITHUB_REPOSITORY_WITHOUT_OWNER = GITHUB_REPOSITORY.replace(`${GITHUB_REPOSITORY_OWNER}/`, ''); 
