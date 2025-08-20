@@ -1,6 +1,6 @@
 on:
   pull_request:
-    types: [opened, reopened, closed, edited, review_requested, ready_for_review, auto_merge_enabled, auto_merge_disabled]
+    types: [opened, reopened, closed, edited, review_requested, ready_for_review, auto_merge_enabled, auto_merge_disabled, converted_to_draft]
   pull_request_review:
     types: [submitted]
 
