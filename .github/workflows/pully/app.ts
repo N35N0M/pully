@@ -284,7 +284,7 @@ const handlePullRequestReviewSubmitted = async (
 	const slackMessage = constructSlackMessage(
 		pullyRepodataCache,
 		author,
-		prData.title,
+		prData.title.replace(">", "\>"),
 		prData.number,
 		prData.state,
 		payload.repository.full_name,
