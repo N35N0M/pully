@@ -11,6 +11,9 @@ concurrency:
 jobs:
   pully:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js version specified in .nvmrc
@@ -19,4 +22,6 @@ jobs:
           node-version-file: ".nvmrc"
       - run: npm ci
       - run: npm run pully
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     if: always()
