@@ -1,0 +1,12 @@
+on:
+  pull_request:
+    types: [opened, reopened, closed, edited, review_requested, ready_for_review, auto_merge_enabled, auto_merge_disabled]
+  pull_request_review:
+    types: [submitted]
+
+concurrency:
+  group: pully # We can only run one instance at a time due to how the pully state works
+  cancel-in-progress: false
+  steps:
+    - run: "cat $GITHUB_EVENT_PATH"
+  if: always()
