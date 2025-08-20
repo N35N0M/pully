@@ -149,8 +149,10 @@ const constructSlackMessage = (
 			break;
 		case "merged":
 			statusSlackmoji = ":github-merged:";
+			break
 		case "draft":
 			statusSlackmoji = ":github-pr-draft:";
+			break
 	}
 
 	let linediff = "";
