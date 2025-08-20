@@ -45,7 +45,7 @@ const GITHUB_REPOSITORY_WITHOUT_OWNER = GITHUB_REPOSITORY.replace(`${GITHUB_REPO
 // Typedefs
 type PrNumber = number;
 type SlackMessageTimestamp = string;
-type PrState = "open" | "closed" | "merged";
+type PrState = 'open' | 'closed' | 'merged' | 'queued';
 type ReviewerState =
 	| "approved"
 	| "requested-changes"
@@ -121,6 +121,7 @@ const getAuthorInfoFromGithubLogin = (
 		firstName: undefined,
 	};
 };
+
 
 const constructSlackMessage = (
 	pullyRepodataCache: PullyData,
@@ -335,12 +336,19 @@ const handlePullRequestGeneric = async (
 		prData.user.login,
 	);
 
+	let prStatus: PrState = prData.state;
+
+	if ((prData.merged_at !== null) && prStatus == "closed" ){
+		prStatus = "merged"
+	}
+
+
 	const slackMessage = constructSlackMessage(
 		pullyRepodataCache,
 		author,
 		prData.title,
 		prData.number,
-		prData.state,
+		prStatus,
 		payload.repository.full_name,
 		prData.html_url,
 		prData.additions,
@@ -496,3 +504,6 @@ loadPullyState().then((repoData) => {
 			break;
 	}
 });
+
+
+// TODO: A better way to ship this for github would be to pack this inside a github action
