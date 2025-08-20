@@ -48,7 +48,7 @@ const GITHUB_REPOSITORY_WITHOUT_OWNER = GITHUB_REPOSITORY.replace(`${GITHUB_REPO
 // Typedefs
 type PrNumber = number;
 type SlackMessageTimestamp = string;
-type PrState = 'open' | 'closed' | 'merged' | 'queued';
+type PrState = 'open' | 'closed' | 'merged' | 'queued' | 'draft';
 type ReviewerState =
 	| "approved"
 	| "requested-changes"
@@ -149,6 +149,8 @@ const constructSlackMessage = (
 			break;
 		case "merged":
 			statusSlackmoji = ":github-merged:";
+		case "draft":
+			statusSlackmoji = ":github-draft:";
 	}
 
 	let linediff = "";
@@ -348,7 +350,10 @@ const handlePullRequestGeneric = async (
 
 	let prStatus: PrState = prData.state;
 
-	if ((prData.merged_at !== null) && prStatus == "closed" ){
+	if (prData.draft){
+		prStatus = "draft"
+	}
+	if (prData.merged){
 		prStatus = "merged"
 	}
 
