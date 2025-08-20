@@ -10,6 +10,38 @@ import { WebClient } from "@slack/web-api";
 import assert from "assert";
 import { Octokit } from "octokit";
 
+// Environment variables
+// TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
+const GITHUB_OWNER = process.env.GITHUB_OWNER;
+const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
+
+assert(
+	!!GITHUB_OWNER,
+	"GITHUB_OWNER, i.e. the owner of the repo this is running for, was unexpectedly undefined in the runtime environment!",
+);
+assert(
+	!!GITHUB_REPOSITORY,
+	"GITHUB_REPOSITORY, i.e. <owner/reponame> from github, was unexpectedly undefined in the runtime environment.",
+);
+assert(
+	!!GITHUB_TOKEN,
+	"GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch",
+);
+assert(!!GITHUB_EVENT_PATH, "GITHUB_EVENT_PATH was undefined in the environment! This should be provided by Github CI and is the same payload as the pull_request and pull_request_review webhooks: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request");
+
+const PULLY_SLACK_TOKEN = process.env.SLACK_TOKEN as string;
+const PULLY_SLACK_CHANNEL = process.env.SLACK_CHANNEL as string;
+assert(!!PULLY_SLACK_TOKEN, "SLACK_TOKEN was not defined in the environment");
+assert(
+	!!PULLY_SLACK_CHANNEL,
+	"SLACK_CHANNEL (the slack channel id) was not defined in the environment",
+);
+
+const GITHUB_REPOSITORY_WITHOUT_OWNER = GITHUB_REPOSITORY.replace(`${GITHUB_OWNER}/`, ''); 
+
+// Typedefs
 type PrNumber = number;
 type SlackMessageTimestamp = string;
 type PrState = "open" | "closed" | "merged";
@@ -51,25 +83,18 @@ const postToSlack = async (
 	slackMessageContent: string,
 	pullyPrDataCache: IPrData,
 ) => {
-	const token = process.env.SLACK_TOKEN as string;
-	const channel = process.env.SLACK_CHANNEL as string;
-	assert(token !== undefined, "SLACK_TOKEN was not defined in the environment");
-	assert(
-		channel !== undefined,
-		"SLACK_CHANNEL (the slack channel id) was not defined in the environment",
-	);
-	const web = new WebClient(token);
+	const web = new WebClient(PULLY_SLACK_TOKEN);
 
 	if (pullyPrDataCache.message) {
 		web.chat.update({
 			text: slackMessageContent,
-			channel: channel,
+			channel: PULLY_SLACK_CHANNEL,
 			ts: pullyPrDataCache.message,
 		});
 	} else {
 		const value = await web.chat.postMessage({
 			text: slackMessageContent,
-			channel: channel,
+			channel: PULLY_SLACK_CHANNEL,
 		});
 		if (value.ts) {
 			pullyPrDataCache.message = value.ts;
@@ -230,8 +255,6 @@ const handlePullRequestReviewSubmitted = async (
 	);
 
 	// Store only a public identifier in the persistent state
-	console.log("hello");
-	console.log(author);
 	if (author.githubUsername) {
 		switch (payload.review.state) {
 			case "approved":
@@ -345,27 +368,17 @@ const handlePullRequestClosed = async (
 	await handlePullRequestGeneric(pullyRepodataCache, payload);
 };
 
-// TODO make a main out of this
-
-// LOAD state
-
 const loadPullyState = async (): Promise<PullyData> => {
+	// TODO: We should create the orphan branch if it doesnt exist already
 	let repoData: PullyData;
-
-	// TODO: fetch state file from orphan branch
-	const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-	assert(
-		GITHUB_TOKEN !== undefined,
-		"GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch",
-	);
-	const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+	const octokit = new Octokit({ auth: GITHUB_TOKEN });
 	try {
 		// TODO: Should sanitize json data with a schema
 		const pullyStateRaw = await octokit.request(
 			"GET /repos/{owner}/{repo}/contents/{path}",
 			{
-				repo: "pully",
-				owner: "N35N0M",
+				repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
+				owner: GITHUB_OWNER,
 				path: "pullystate.json",
 				ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
 			},
@@ -379,25 +392,23 @@ const loadPullyState = async (): Promise<PullyData> => {
 };
 
 const savePullyState = async (pullyState: PullyData) => {
-	const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+	const octokit = new Octokit({ auth: GITHUB_TOKEN });
 	const pullyStateRaw = await octokit.request(
 		"GET /repos/{owner}/{repo}/contents/{path}",
 		{
-			repo: "pully",
-			owner: "N35N0M",
+			repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
+			owner: GITHUB_OWNER,
 			path: "pullystate.json",
 			ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
 		},
 	);
-	console.log(pullyStateRaw)
 
 	// @ts-expect-error need to assert that this is file somehow
 	const sha = pullyStateRaw.data.sha;
-	console.log(sha)
 
 	await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-		owner: "N35N0M",
-		repo: "pully",
+		owner: GITHUB_OWNER,
+		repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
 		path: "pullystate.json",
 		branch: "refs/heads/pully-persistent-state-do-not-use-for-coding",
 		message: "Pully state update",
@@ -414,6 +425,10 @@ const savePullyState = async (pullyState: PullyData) => {
 	console.log("Saved state");
 };
 
+// TODO make a main out of this
+
+// LOAD state
+
 loadPullyState().then((repoData) => {
 	const getEventData = ():
 		| PullRequestReviewSubmittedEvent
@@ -429,8 +444,7 @@ loadPullyState().then((repoData) => {
 		// TODO: fetch via github state variable
 		try {
 			// TODO: Should sanitize json data
-			const eventJsonFile = process.env.EVENT_JSON_FILE as string;
-			eventData = JSON.parse(readFileSync(eventJsonFile, "utf-8"));
+			eventData = JSON.parse(readFileSync(GITHUB_EVENT_PATH, "utf-8"));
 		} catch {
 			console.warn("No data.json found, starting state from scratch...");
 			throw Error("Could not read the event data");
