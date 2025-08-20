@@ -156,7 +156,7 @@ const constructSlackMessage = (
 		linediff = `(+${lineAdds}/-${lineRemovals})`;
 	}
 
-	let text = `<${prUrl}|[${repoFullname}] ${prTitle} (#${prNumber})> ${linediff} by ${authorToUse}`;
+	let text = `<${prUrl}|[${repoFullname}] ${prTitle.replace(">", "\>")} (#${prNumber})> ${linediff} by ${authorToUse}`;
 
 	if (repoFullname in pullyRepodataCache.repodata) {
 		const specificRepoData = pullyRepodataCache.repodata[repoFullname];
@@ -284,7 +284,7 @@ const handlePullRequestReviewSubmitted = async (
 	const slackMessage = constructSlackMessage(
 		pullyRepodataCache,
 		author,
-		prData.title.replace(">", "\>"),
+		prData.title,
 		prData.number,
 		prData.state,
 		payload.repository.full_name,
