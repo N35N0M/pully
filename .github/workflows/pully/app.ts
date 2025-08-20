@@ -224,8 +224,14 @@ const ensureStateIsInitializedForRepoAndPr = (
 ) => {
 	if (!(repoFullName in pullyRepodataCache)) {
 		pullyRepodataCache[repoFullName] = {
-			prData: { [prNumber]: { reviews: {}, message: undefined } },
+			prData: { },
 		};
+	}
+	
+	const repoPrData = pullyRepodataCache[repoFullName].prData;
+
+	if (!(prNumber in repoPrData)){
+		repoPrData[prNumber] = {reviews: {}, message: undefined} 
 	}
 };
 
