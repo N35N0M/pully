@@ -1,8 +1,11 @@
 import fs, { readFileSync } from "fs";
 import {
 	PullRequestClosedEvent,
+	PullRequestConvertedToDraftEvent,
+	PullRequestEditedEvent,
 	PullRequestEvent,
 	PullRequestOpenedEvent,
+	PullRequestReadyForReviewEvent,
 	PullRequestReopenedEvent,
 	PullRequestReviewRequestedEvent,
 	PullRequestReviewSubmittedEvent,
@@ -45,7 +48,7 @@ const GITHUB_REPOSITORY_WITHOUT_OWNER = GITHUB_REPOSITORY.replace(`${GITHUB_REPO
 // Typedefs
 type PrNumber = number;
 type SlackMessageTimestamp = string;
-type PrState = 'open' | 'closed' | 'merged' | 'queued';
+type PrState = 'open' | 'closed' | 'merged' | 'queued' | 'draft';
 type ReviewerState =
 	| "approved"
 	| "requested-changes"
@@ -146,6 +149,8 @@ const constructSlackMessage = (
 			break;
 		case "merged":
 			statusSlackmoji = ":github-merged:";
+		case "draft":
+			statusSlackmoji = ":github-pr-draft:";
 	}
 
 	let linediff = "";
@@ -153,7 +158,8 @@ const constructSlackMessage = (
 		linediff = `(+${lineAdds}/-${lineRemovals})`;
 	}
 
-	let text = `<${prUrl}|[${repoFullname}] ${prTitle} (#${prNumber})> ${linediff} by ${authorToUse}`;
+	// TODO: need to figure out how to keep '>' in the text without breaking the slack post link
+	let text = `<${prUrl}|[${repoFullname}] ${prTitle.replaceAll(">", "")} (#${prNumber})> ${linediff} by ${authorToUse}`;
 
 	if (repoFullname in pullyRepodataCache.repodata) {
 		const specificRepoData = pullyRepodataCache.repodata[repoFullname];
@@ -221,8 +227,14 @@ const ensureStateIsInitializedForRepoAndPr = (
 ) => {
 	if (!(repoFullName in pullyRepodataCache)) {
 		pullyRepodataCache[repoFullName] = {
-			prData: { [prNumber]: { reviews: {}, message: undefined } },
+			prData: { },
 		};
+	}
+	
+	const repoPrData = pullyRepodataCache[repoFullName].prData;
+
+	if (!(prNumber in repoPrData)){
+		repoPrData[prNumber] = {reviews: {}, message: undefined} 
 	}
 };
 
@@ -338,7 +350,10 @@ const handlePullRequestGeneric = async (
 
 	let prStatus: PrState = prData.state;
 
-	if ((prData.merged_at !== null) && prStatus == "closed" ){
+	if (prData.draft){
+		prStatus = "draft"
+	}
+	if (prData.merged){
 		prStatus = "merged"
 	}
 
@@ -370,6 +385,36 @@ const handlePullRequestOpened = async (
 const handlePullRequestReopened = async (
 	pullyRepodataCache: PullyData,
 	payload: PullRequestReopenedEvent,
+) => {
+	console.log(
+		`Received a pull request open event for #${payload.pull_request.url}`,
+	);
+	await handlePullRequestGeneric(pullyRepodataCache, payload);
+};
+
+const handlePullRequestEdited = async (
+	pullyRepodataCache: PullyData,
+	payload: PullRequestEditedEvent,
+) => {
+	console.log(
+		`Received a pull request open event for #${payload.pull_request.url}`,
+	);
+	await handlePullRequestGeneric(pullyRepodataCache, payload);
+};
+
+const handlePullRequestConvertedToDraft = async (
+	pullyRepodataCache: PullyData,
+	payload: PullRequestConvertedToDraftEvent,
+) => {
+	console.log(
+		`Received a pull request open event for #${payload.pull_request.url}`,
+	);
+	await handlePullRequestGeneric(pullyRepodataCache, payload);
+};
+
+const handlePullRequestReadyForReview = async (
+	pullyRepodataCache: PullyData,
+	payload: PullRequestReadyForReviewEvent,
 ) => {
 	console.log(
 		`Received a pull request open event for #${payload.pull_request.url}`,
@@ -454,12 +499,17 @@ loadPullyState().then((repoData) => {
 		| PullRequestOpenedEvent
 		| PullRequestReviewRequestedEvent
 		| PullRequestClosedEvent
-		| PullRequestReopenedEvent => {
+		| PullRequestReopenedEvent
+		| PullRequestEditedEvent
+		| PullRequestConvertedToDraftEvent
+		| PullRequestReadyForReviewEvent => {
 		let eventData:
 			| PullRequestReviewSubmittedEvent
 			| PullRequestOpenedEvent
 			| PullRequestReviewRequestedEvent
-			| PullRequestClosedEvent | PullRequestReopenedEvent;
+			| PullRequestClosedEvent | PullRequestReopenedEvent 		| PullRequestEditedEvent
+		| PullRequestConvertedToDraftEvent
+		| PullRequestReadyForReviewEvent;
 
 		// TODO: fetch via github state variable
 		try {
@@ -502,6 +552,23 @@ loadPullyState().then((repoData) => {
 				savePullyState(repoData),
 			);
 			break;
+		case "converted_to_draft":
+			handlePullRequestConvertedToDraft(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
+		case "ready_for_review":
+			handlePullRequestReadyForReview(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
+		case "edited":
+			handlePullRequestEdited(repoData, data).then(() =>
+				savePullyState(repoData),
+			);
+			break;
+		default:
+			console.log(`Got unknown event to handle: ${data}`)
 	}
 });
 

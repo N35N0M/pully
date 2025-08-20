@@ -40,6 +40,7 @@ It's important that any branch protection rules allows GITHUB_TOKEN to write to 
   ]
 }
 ```
+6. Review the contents of `.github/workflows` in this repo, and merge in these files to your default branch in your repo to get going (TODO dedicated github/gitlab actions)
 
 ## Core design guidelines:
 - One slack message per unique PR
