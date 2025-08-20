@@ -12,14 +12,14 @@ import { Octokit } from "octokit";
 
 // Environment variables
 // TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
-const GITHUB_OWNER = process.env.GITHUB_OWNER;
+const GITHUB_REPOSITORY_OWNER = process.env.GITHUB_REPOSITORY_OWNER;
 const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
 
 assert(
-	!!GITHUB_OWNER,
-	"GITHUB_OWNER, i.e. the owner of the repo this is running for, was unexpectedly undefined in the runtime environment!",
+	!!GITHUB_REPOSITORY_OWNER,
+	"GITHUB_REPOSITORY_OWNER, i.e. the owner of the repo this is running for, was unexpectedly undefined in the runtime environment!",
 );
 assert(
 	!!GITHUB_REPOSITORY,
@@ -39,7 +39,7 @@ assert(
 	"SLACK_CHANNEL (the slack channel id) was not defined in the environment",
 );
 
-const GITHUB_REPOSITORY_WITHOUT_OWNER = GITHUB_REPOSITORY.replace(`${GITHUB_OWNER}/`, ''); 
+const GITHUB_REPOSITORY_WITHOUT_OWNER = GITHUB_REPOSITORY.replace(`${GITHUB_REPOSITORY_OWNER}/`, ''); 
 
 // Typedefs
 type PrNumber = number;
@@ -378,7 +378,7 @@ const loadPullyState = async (): Promise<PullyData> => {
 			"GET /repos/{owner}/{repo}/contents/{path}",
 			{
 				repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
-				owner: GITHUB_OWNER,
+				owner: GITHUB_REPOSITORY_OWNER,
 				path: "pullystate.json",
 				ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
 			},
@@ -397,7 +397,7 @@ const savePullyState = async (pullyState: PullyData) => {
 		"GET /repos/{owner}/{repo}/contents/{path}",
 		{
 			repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
-			owner: GITHUB_OWNER,
+			owner: GITHUB_REPOSITORY_OWNER,
 			path: "pullystate.json",
 			ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
 		},
@@ -407,7 +407,7 @@ const savePullyState = async (pullyState: PullyData) => {
 	const sha = pullyStateRaw.data.sha;
 
 	await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-		owner: GITHUB_OWNER,
+		owner: GITHUB_REPOSITORY_OWNER,
 		repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
 		path: "pullystate.json",
 		branch: "refs/heads/pully-persistent-state-do-not-use-for-coding",
