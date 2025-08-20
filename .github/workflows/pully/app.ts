@@ -157,7 +157,7 @@ const constructSlackMessage = (
 	}
 
 	// TODO: need to figure out how to keep '>' in the text without breaking the slack post link
-	let text = `<${prUrl}|[${repoFullname}] ${prTitle.replace(">", "")} (#${prNumber})> ${linediff} by ${authorToUse}`;
+	let text = `<${prUrl}|[${repoFullname}] ${prTitle.replaceAll(">", "")} (#${prNumber})> ${linediff} by ${authorToUse}`;
 
 	if (repoFullname in pullyRepodataCache.repodata) {
 		const specificRepoData = pullyRepodataCache.repodata[repoFullname];
