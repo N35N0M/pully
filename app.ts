@@ -31,8 +31,8 @@ assert(
 );
 assert(!!GITHUB_EVENT_PATH, "GITHUB_EVENT_PATH was undefined in the environment! This should be provided by Github CI and is the same payload as the pull_request and pull_request_review webhooks: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request");
 
-const PULLY_SLACK_TOKEN = process.env.SLACK_TOKEN as string;
-const PULLY_SLACK_CHANNEL = process.env.SLACK_CHANNEL as string;
+const PULLY_SLACK_TOKEN = process.env.PULLY_SLACK_TOKEN as string;
+const PULLY_SLACK_CHANNEL = process.env.PULLY_SLACK_CHANNEL as string;
 assert(!!PULLY_SLACK_TOKEN, "PULLY_SLACK_TOKEN was not defined in the environment");
 assert(
 	!!PULLY_SLACK_CHANNEL,
