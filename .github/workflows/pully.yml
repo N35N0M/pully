@@ -12,8 +12,7 @@ jobs:
   pully:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      issues: write
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js version specified in .nvmrc
