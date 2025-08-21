@@ -5,14 +5,17 @@ on:
     types: [submitted]
 
 concurrency:
-  group: pully # We can only run one instance at a time due to how the pully state works
-  cancel-in-progress: false
+  group: pully-${{github.event.pull_request.number}}
+  # Github concurrency lacks some important functionality (max 1 pending job in the group is allowed)
+  # So we just have to cancel old jobs and let the latest job for a PR do the heavy lifting
+  cancel-in-progress: true 
 
 jobs:
   pully:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js version specified in .nvmrc
