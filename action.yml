@@ -1,0 +1,39 @@
+#on:
+#  pull_request:
+#    types: [opened, reopened, closed, edited, review_requested, ready_for_review, auto_merge_enabled, auto_merge_disabled, converted_to_draft]
+#  pull_request_review:
+#    types: [submitted]
+
+#concurrency:
+#  group: pully-${{github.event.pull_request.number}}
+  # Github concurrency lacks some important functionality (max 1 pending job in the group is allowed)
+  # So we just have to cancel old jobs and let the latest job for a PR do the heavy lifting
+#  cancel-in-progress: true 
+
+name: Run pully
+description: Runs pully, a little utility to write one slack message per pr that is constantly edited when the status changes.
+
+runs:
+  using: node22
+  permissions:
+    contents: write
+    pull-requests: read
+  steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js version specified in .nvmrc
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: ".github/workflows/pully/.nvmrc"
+    - name: Cache npm dependencies
+      uses: actions/cache@v4
+      with:
+        path: '~/.npm'
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    - run: npm ci
+    - run: npm run pully
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PULLY_SLACK_CHANNEL: ${{ secrets.PULLY_SLACK_CHANNEL }}
+        PULLY_SLACK_TOKEN: ${{ secrets.PULLY_SLACK_TOKEN }}
