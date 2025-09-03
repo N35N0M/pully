@@ -18,4 +18,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: foo
-        uses: N35N0M/pully@c2bfe84c81e8bc76894cc9fdd1f60d2366d87733
+        uses: N35N0M/pully@0b4a7513594cb0c542a3703f0fb1e72ecffffc04
