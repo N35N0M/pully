@@ -139,7 +139,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 *.pem
-*.js 
 *.js.map
 *.d.ts
 
