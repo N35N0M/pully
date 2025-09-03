@@ -1,4 +1,3 @@
-import require$$1$2, { readFileSync } from 'fs';
 import require$$0$1 from 'node:os';
 import require$$1 from 'node:path';
 import require$$1$3 from 'node:querystring';
@@ -10,6 +9,7 @@ import require$$1$1 from 'path';
 import require$$2$2 from 'http';
 import require$$4$1 from 'https';
 import require$$0$4 from 'url';
+import require$$1$2 from 'fs';
 import require$$8 from 'crypto';
 import require$$0$5 from 'assert';
 import require$$8$1 from 'zlib';
@@ -61168,38 +61168,36 @@ coreExports.info(`The eventName: ${eventName}`);
 console.log(githubExports.context);
 // Environment variables
 // TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
-const GITHUB_REPOSITORY_OWNER = process.env.GITHUB_REPOSITORY_OWNER;
-const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
+const GITHUB_REPOSITORY_OWNER = githubExports.context.payload.repository?.owner.login;
+const GITHUB_REPOSITORY = githubExports.context.payload.repository?.name;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_EVENT_PATH = process.env.GITHUB_EVENT_PATH;
-require$$0$5(!!GITHUB_REPOSITORY_OWNER, 'GITHUB_REPOSITORY_OWNER, i.e. the owner of the repo this is running for, was unexpectedly undefined in the runtime environment!');
-require$$0$5(!!GITHUB_REPOSITORY, 'GITHUB_REPOSITORY, i.e. <owner/reponame> from github, was unexpectedly undefined in the runtime environment.');
 require$$0$5(!!GITHUB_TOKEN, "GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch");
-require$$0$5(!!GITHUB_EVENT_PATH, 'GITHUB_EVENT_PATH was undefined in the environment! This should be provided by Github CI and is the same payload as the pull_request and pull_request_review webhooks: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request');
+require$$0$5(!!GITHUB_REPOSITORY_OWNER, "GITHUB_REPOSITORY_OWNER, i.e. the owner of the repo this is running for, was unexpectedly undefined in the runtime environment!");
+require$$0$5(!!GITHUB_REPOSITORY, "GITHUB_REPOSITORY, i.e. <owner/reponame> from github, was unexpectedly undefined in the runtime environment.");
 const PULLY_SLACK_TOKEN = process.env.PULLY_SLACK_TOKEN;
 const PULLY_SLACK_CHANNEL = process.env.PULLY_SLACK_CHANNEL;
-require$$0$5(!!PULLY_SLACK_TOKEN, 'PULLY_SLACK_TOKEN was not defined in the environment');
-require$$0$5(!!PULLY_SLACK_CHANNEL, 'PULLY_SLACK_CHANNEL (the slack channel id) was not defined in the environment');
-const GITHUB_REPOSITORY_WITHOUT_OWNER = GITHUB_REPOSITORY.replace(`${GITHUB_REPOSITORY_OWNER}/`, '');
+require$$0$5(!!PULLY_SLACK_TOKEN, "PULLY_SLACK_TOKEN was not defined in the environment");
+require$$0$5(!!PULLY_SLACK_CHANNEL, "PULLY_SLACK_CHANNEL (the slack channel id) was not defined in the environment");
 const postToSlack = async (slackMessageContent, prNumber) => {
     // TODO: Determine existing message timestamp by checking state for timestamp file
     const web = new distExports.WebClient(PULLY_SLACK_TOKEN);
     const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
     let existingMessageTimestamp;
-    const messagePath = `messages/${GITHUB_REPOSITORY_OWNER}_${GITHUB_REPOSITORY_WITHOUT_OWNER}_${prNumber}.timestamp`;
+    const messagePath = `messages/${GITHUB_REPOSITORY_OWNER}_${GITHUB_REPOSITORY}_${prNumber}.timestamp`;
     try {
-        const pullyStateRaw = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
-            repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
+        const pullyStateRaw = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
+            repo: GITHUB_REPOSITORY,
             owner: GITHUB_REPOSITORY_OWNER,
             path: messagePath,
-            ref: 'refs/heads/pully-persistent-state-do-not-use-for-coding',
+            ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
         });
+        const timestampFile = JSON.parse(
         // @ts-expect-error need to assert that this is file somehow
-        const timestampFile = JSON.parse(atob(pullyStateRaw.data.content));
+        atob(pullyStateRaw.data.content));
         existingMessageTimestamp = timestampFile.timestamp;
     }
     catch (e) {
-        console.log('Error when getting existing timestamp...');
+        console.log("Error when getting existing timestamp...");
         console.log(e); // Assuming file not found
     }
     if (existingMessageTimestamp) {
@@ -61215,20 +61213,20 @@ const postToSlack = async (slackMessageContent, prNumber) => {
             channel: PULLY_SLACK_CHANNEL,
         });
         if (value.ts) {
-            await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+            await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
                 owner: GITHUB_REPOSITORY_OWNER,
-                repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
+                repo: GITHUB_REPOSITORY,
                 path: messagePath,
-                branch: 'refs/heads/pully-persistent-state-do-not-use-for-coding',
-                message: 'Pully state update',
+                branch: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+                message: "Pully state update",
                 committer: {
-                    name: 'Pully',
-                    email: 'kris@bitheim.no',
+                    name: "Pully",
+                    email: "kris@bitheim.no",
                 },
                 content: btoa(JSON.stringify({ timestamp: value.ts })),
                 // sha: sha, We will never update the file since we have one message per pr...
                 headers: {
-                    'X-GitHub-Api-Version': '2022-11-28',
+                    "X-GitHub-Api-Version": "2022-11-28",
                 },
             });
         }
@@ -61247,42 +61245,42 @@ const getAuthorInfoFromGithubLogin = (authorInfos, githubLogin) => {
 };
 const constructSlackMessage = async (pullyRepodataCache, author, prTitle, prNumber, prState, repoFullname, prUrl, lineAdds, lineRemovals) => {
     const authorToUse = author.firstName ?? author.githubUsername;
-    let statusSlackmoji = '';
+    let statusSlackmoji = "";
     switch (prState) {
-        case 'closed':
-            statusSlackmoji = ':github-closed:';
+        case "closed":
+            statusSlackmoji = ":github-closed:";
             break;
-        case 'open':
-            statusSlackmoji = ':github-pr:';
+        case "open":
+            statusSlackmoji = ":github-pr:";
             break;
-        case 'merged':
-            statusSlackmoji = ':github-merged:';
+        case "merged":
+            statusSlackmoji = ":github-merged:";
             break;
-        case 'draft':
-            statusSlackmoji = ':github-pr-draft:';
+        case "draft":
+            statusSlackmoji = ":github-pr-draft:";
             break;
     }
-    let linediff = '';
+    let linediff = "";
     if (lineAdds !== undefined && lineRemovals !== undefined) {
         linediff = `(+${lineAdds}/-${lineRemovals})`;
     }
     // TODO: need to figure out how to keep '>' in the text without breaking the slack post link
-    let text = `<${prUrl}|[${repoFullname}] ${prTitle.replaceAll('>', '')} (#${prNumber})> ${linediff} by ${authorToUse}`;
+    let text = `<${prUrl}|[${repoFullname}] ${prTitle.replaceAll(">", "")} (#${prNumber})> ${linediff} by ${authorToUse}`;
     const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
-    const prReviews = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews', {
+    const prReviews = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
         owner: GITHUB_REPOSITORY_OWNER,
-        repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
+        repo: GITHUB_REPOSITORY,
         pull_number: prNumber,
         headers: {
-            'X-GitHub-Api-Version': '2022-11-28',
+            "X-GitHub-Api-Version": "2022-11-28",
         },
     });
-    const reviewRequests = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers', {
+    const reviewRequests = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers", {
         owner: GITHUB_REPOSITORY_OWNER,
-        repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
+        repo: GITHUB_REPOSITORY,
         pull_number: prNumber,
         headers: {
-            'X-GitHub-Api-Version': '2022-11-28',
+            "X-GitHub-Api-Version": "2022-11-28",
         },
     });
     const reviews = {};
@@ -61290,7 +61288,7 @@ const constructSlackMessage = async (pullyRepodataCache, author, prTitle, prNumb
     for (const request of reviewRequests.data.users.reverse()) {
         // Only use the latest review per user
         if (!(request.login in prReviews)) {
-            reviews[request.login] = 'review_requested';
+            reviews[request.login] = "review_requested";
         }
     }
     // Iterate through the reviews backwards as the latest reviews are reported first...
@@ -61298,11 +61296,11 @@ const constructSlackMessage = async (pullyRepodataCache, author, prTitle, prNumb
         if (review.user?.login !== undefined) {
             // Only use the latest review per user
             if (!(review.user.login in prReviews)) {
-                if (review.state === 'APPROVED') {
-                    reviews[review.user.login] = 'approved';
+                if (review.state === "APPROVED") {
+                    reviews[review.user.login] = "approved";
                 }
-                else if (review.state === 'CHANGES_REQUESTED') {
-                    reviews[review.user.login] = 'requested-changes';
+                else if (review.state === "CHANGES_REQUESTED") {
+                    reviews[review.user.login] = "requested-changes";
                 }
             }
         }
@@ -61313,37 +61311,39 @@ const constructSlackMessage = async (pullyRepodataCache, author, prTitle, prNumb
     for (const [reviewer, state] of Object.entries(reviews)) {
         const reviewerData = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, reviewer);
         switch (state) {
-            case 'approved':
+            case "approved":
                 approvers.add(reviewerData.firstName ?? reviewerData.githubUsername);
                 break;
-            case 'requested-changes':
+            case "requested-changes":
                 change_requesters.add(reviewerData.firstName ?? reviewerData.githubUsername);
                 break;
-            case 'review_requested':
+            case "review_requested":
                 // Only give @ mentions when a review is requested to avoid notification spam
                 review_requests.add(`<@${reviewerData.slackMemberId}>`);
         }
     }
     if (approvers.size !== 0) {
-        text += ' | :github-approve: ' + Array.from(approvers).join(', ');
+        text += " | :github-approve: " + Array.from(approvers).join(", ");
     }
-    if (prState === 'open') {
+    if (prState === "open") {
         if (change_requesters.size !== 0) {
-            text += ' | :github-changes-requested: ' + Array.from(change_requesters).join(', ');
+            text +=
+                " | :github-changes-requested: " +
+                    Array.from(change_requesters).join(", ");
         }
         if (review_requests.size !== 0) {
-            text += ' | :code-review: ' + Array.from(review_requests).join(', ');
+            text += " | :code-review: " + Array.from(review_requests).join(", ");
         }
     }
-    if (prState === 'closed' || prState === 'merged') {
+    if (prState === "closed" || prState === "merged") {
         text = `~${text}~`;
     }
     text = `${statusSlackmoji} ${text}`;
     return text;
 };
 const handlePullRequestReviewSubmitted = async (pullyRepodataCache, payload) => {
-    console.log('Received a pull request review submitted event');
-    const prAuthor = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, payload.pull_request.user?.login ?? 'undefined');
+    console.log("Received a pull request review submitted event");
+    const prAuthor = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, payload.pull_request.user?.login ?? "undefined");
     const prData = payload.pull_request;
     const slackMessage = await constructSlackMessage(pullyRepodataCache, prAuthor, prData.title, prData.number, prData.state, payload.repository.full_name, prData.html_url, undefined, undefined);
     await postToSlack(slackMessage, prData.number);
@@ -61356,10 +61356,10 @@ const handlePullRequestGeneric = async (pullyRepodataCache, payload) => {
     const author = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, prData.user.login);
     let prStatus = prData.state;
     if (prData.draft) {
-        prStatus = 'draft';
+        prStatus = "draft";
     }
     if (prData.merged_at != null) {
-        prStatus = 'merged';
+        prStatus = "merged";
     }
     const slackMessage = await constructSlackMessage(pullyRepodataCache, author, prData.title, prData.number, prStatus, payload.repository.full_name, prData.html_url, prData.additions, prData.deletions);
     await postToSlack(slackMessage, prData.number);
@@ -61394,11 +61394,11 @@ const loadPullyState = async () => {
     const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
     try {
         // TODO: Should sanitize json data with a schema
-        const pullyStateRaw = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
-            repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
+        const pullyStateRaw = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
+            repo: GITHUB_REPOSITORY,
             owner: GITHUB_REPOSITORY_OWNER,
-            path: 'pullystate.json',
-            ref: 'refs/heads/pully-persistent-state-do-not-use-for-coding',
+            path: "pullystate.json",
+            ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
         });
         // @ts-expect-error need to assert that this is file somehow
         repoData = JSON.parse(atob(pullyStateRaw.data.content));
@@ -61410,70 +61410,66 @@ const loadPullyState = async () => {
 };
 const savePullyState = async (pullyState) => {
     const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
-    const pullyStateRaw = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
-        repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
+    const pullyStateRaw = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
+        repo: GITHUB_REPOSITORY,
         owner: GITHUB_REPOSITORY_OWNER,
-        path: 'pullystate.json',
-        ref: 'refs/heads/pully-persistent-state-do-not-use-for-coding',
+        path: "pullystate.json",
+        ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
     });
     // @ts-expect-error need to assert that this is file somehow
     const sha = pullyStateRaw.data.sha;
-    await octokit.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+    await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
         owner: GITHUB_REPOSITORY_OWNER,
-        repo: GITHUB_REPOSITORY_WITHOUT_OWNER,
-        path: 'pullystate.json',
-        branch: 'refs/heads/pully-persistent-state-do-not-use-for-coding',
-        message: 'Pully state update',
+        repo: GITHUB_REPOSITORY,
+        path: "pullystate.json",
+        branch: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+        message: "Pully state update",
         committer: {
-            name: 'Pully',
-            email: 'kris@bitheim.no',
+            name: "Pully",
+            email: "kris@bitheim.no",
         },
         content: btoa(JSON.stringify(pullyState)),
         sha: sha,
         headers: {
-            'X-GitHub-Api-Version': '2022-11-28',
+            "X-GitHub-Api-Version": "2022-11-28",
         },
     });
-    console.log('Saved state');
+    console.log("Saved state");
 };
 // TODO make a main out of this
 // LOAD state
 loadPullyState().then((repoData) => {
     const getEventData = () => {
         let eventData;
-        try {
-            eventData = JSON.parse(readFileSync(GITHUB_EVENT_PATH, 'utf-8'));
-        }
-        catch {
-            throw Error('Could not read the github event payload, nothing to do here');
-        }
+        // @ts-ignore TODO can we type narrow this to the correct type...?
+        eventData = githubExports.context.payload;
         return eventData;
     };
     const data = getEventData();
     // Then handle provided event payload (TODO to make this not strictly github based...)
     switch (data.action) {
-        case 'submitted':
+        case "submitted":
             handlePullRequestReviewSubmitted(repoData, data).then(() => savePullyState(repoData));
             break;
-        case 'closed':
+        case "closed":
             handlePullRequestClosed(repoData, data).then(() => savePullyState(repoData));
             break;
-        case 'opened':
+        case "opened":
             handlePullRequestOpened(repoData, data).then(() => savePullyState(repoData));
             break;
-        case 'reopened':
+        case "reopened":
             handlePullRequestReopened(repoData, data).then(() => savePullyState(repoData));
             break;
-        case 'review_requested':
+        case "review_requested":
             handlePullRequestReviewRequested(repoData, data).then(() => savePullyState(repoData));
             break;
-        case 'converted_to_draft':
+        case "converted_to_draft":
             handlePullRequestConvertedToDraft(repoData, data).then(() => savePullyState(repoData));
             break;
-        case 'ready_for_review':
+        case "ready_for_review":
             handlePullRequestReadyForReview(repoData, data).then(() => savePullyState(repoData));
             break;
-        case 'edited':
+        case "edited":
             handlePullRequestEdited(repoData, data).then(() => savePullyState(repoData));
             break;
         default:
