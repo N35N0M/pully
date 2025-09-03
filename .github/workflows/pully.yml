@@ -18,4 +18,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: foo
-        uses: ../../action.yml
+        uses: N35N0M/pully@a5dbff1158b6ef2e71c5638dd2908aafadc6f460
