@@ -15,6 +15,9 @@ jobs:
   run_pully:
     runs-on: ubuntu-latest
     name: Pully running as a github action
+    permissions: # TODO perhaps require a more fine-scoped token that can just write to the pully state branch...? And PR data
+      contents: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
       - id: foo
