@@ -1,20 +1,27 @@
 {
   "compilerOptions": {
-    "module": "es2022",
-    "moduleResolution": "bundler",
-    "noImplicitAny": true,
-    "removeComments": true,
-    "preserveConstEnums": true,
-    "sourceMap": true,
-    "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
-    "declaration": true,
-    "downlevelIteration": true,
+    "declaration": false,
+    "declarationMap": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "lib": ["ES2022"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "newLine": "lf",
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "pretty": true,
+    "resolveJsonModule": true,
     "strict": true,
-    "lib": ["es2022"]
+    "strictNullChecks": true,
+    "target": "ES2022",
+    "outDir": "./dist"
   },
   "include": [
-    "app.ts",
+    "src/index.ts",
   ],
   "exclude": ["node_modules/**"]
 }

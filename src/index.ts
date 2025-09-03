@@ -20,7 +20,6 @@ import { Octokit } from 'octokit';
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 
-type eventNamesWeSupport = 'PullRequestEvent' | 'PullRequestReviewEvent';
 
 // TODO aaaargh the mess
 const eventName = github.context.eventName;
@@ -60,13 +59,11 @@ const GITHUB_REPOSITORY_WITHOUT_OWNER = GITHUB_REPOSITORY.replace(`${GITHUB_REPO
 
 // Typedefs
 type PrNumber = number;
-type SlackMessageTimestamp = string;
 type PrState = 'open' | 'closed' | 'merged' | 'queued' | 'draft';
 type ReviewerState = 'approved' | 'requested-changes' | 'review_requested' | 'dismissed';
 
 type GithubUsername = string;
 type Reviewers = Record<GithubUsername, ReviewerState>;
-type PrData = Record<PrNumber, IPrData>;
 type RepoFullname = string;
 type PullyData = {
   known_authors: AuthorInfo[];
@@ -78,13 +75,7 @@ interface AuthorInfo {
   firstName?: string;
 }
 
-interface IPrData {
-  reviews: Reviewers;
-  /**
-   * This repo explicitly assumes one slack message (and thus channel) per pull request
-   */
-  message?: SlackMessageTimestamp;
-}
+
 
 const postToSlack = async (slackMessageContent: string, prNumber: number) => {
   // TODO: Determine existing message timestamp by checking state for timestamp file
