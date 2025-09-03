@@ -1,0 +1,21 @@
+# Dogfooding
+on:
+ pull_request:
+   types: [opened, reopened, closed, edited, review_requested, ready_for_review, auto_merge_enabled, auto_merge_disabled, converted_to_draft]
+ pull_request_review:
+   types: [submitted]
+
+concurrency:
+ group: pully-${{github.event.pull_request.number}}
+  Github concurrency lacks some important functionality (max 1 pending job in the group is allowed)
+  So we just have to cancel old jobs and let the latest job for a PR do the heavy lifting
+ cancel-in-progress: true 
+
+jobs:
+  run_pully:
+    runs-on: ubuntu-latest
+    name: Pully running as a github action
+    steps:
+      - uses: actions/checkout@v4
+      - id: foo
+        uses: ../../action.yml

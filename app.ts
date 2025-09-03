@@ -1,3 +1,7 @@
+// TODO: Need cleanup support after a PR is merged to avoid having lots of dead files in state
+// TODO: We need history from time to time
+// TODO: Opt-in daily summary in the morning of workdays
+
 import { readFileSync } from 'fs';
 import type {
   PullRequestClosedEvent,
@@ -13,6 +17,15 @@ import type {
 import { WebClient } from '@slack/web-api';
 import assert from 'assert';
 import { Octokit } from 'octokit';
+import * as core from "@actions/core";
+import * as github from "@actions/github";
+
+type eventNamesWeSupport = 'PullRequestEvent' | 'PullRequestReviewEvent';
+
+// TODO aaaargh the mess
+const eventName = github.context.eventName;
+core.info(`The eventName: ${eventName}`);
+console.log(github.context);
 
 // Environment variables
 // TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
