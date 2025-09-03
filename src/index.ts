@@ -28,7 +28,7 @@ console.log(github.context);
 // TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
 const GITHUB_REPOSITORY_OWNER = github.context.payload.repository?.owner.login;
 const GITHUB_REPOSITORY = github.context.payload.repository?.name;
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN as string;
+const GITHUB_TOKEN = core.getInput('GITHUB_TOKEN');
 assert(
 	!!GITHUB_TOKEN,
 	"GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch",
@@ -42,8 +42,8 @@ assert(
 	"GITHUB_REPOSITORY, i.e. <owner/reponame> from github, was unexpectedly undefined in the runtime environment.",
 );
 
-const PULLY_SLACK_TOKEN = process.env.PULLY_SLACK_TOKEN as string;
-const PULLY_SLACK_CHANNEL = process.env.PULLY_SLACK_CHANNEL as string;
+const PULLY_SLACK_TOKEN = core.getInput('PULLY_SLACK_TOKEN');
+const PULLY_SLACK_CHANNEL = core.getInput('PULLY_SLACK_CHANNEL');
 assert(
 	!!PULLY_SLACK_TOKEN,
 	"PULLY_SLACK_TOKEN was not defined in the environment",

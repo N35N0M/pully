@@ -3,7 +3,16 @@ description: Runs pully, a little utility to write one slack message per pr that
 
 # TODO input to tune what to do on draft (dont post, remove message, etc)
 # TODO input to tune what to do on closed (not merged. Remove the message? Allow reposting later?)
-
+inputs:
+  GITHUB_TOKEN: 
+    description: The github token with repo read/write permissions (needed for pully state)
+    required: true
+  PULLY_SLACK_CHANNEL: 
+    description: The ID of the slack channel that pully will post to for this repo
+    required: true
+  PULLY_SLACK_TOKEN:
+    description: The slack app token that has chat:write access only to the channel it is added to
+    required: true  
 # TODO secret input? Is it even defined in the interface...?
 
 runs:

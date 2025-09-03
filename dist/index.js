@@ -61170,12 +61170,12 @@ console.log(githubExports.context);
 // TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
 const GITHUB_REPOSITORY_OWNER = githubExports.context.payload.repository?.owner.login;
 const GITHUB_REPOSITORY = githubExports.context.payload.repository?.name;
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_TOKEN = coreExports.getInput('GITHUB_TOKEN');
 require$$0$5(!!GITHUB_TOKEN, "GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch");
 require$$0$5(!!GITHUB_REPOSITORY_OWNER, "GITHUB_REPOSITORY_OWNER, i.e. the owner of the repo this is running for, was unexpectedly undefined in the runtime environment!");
 require$$0$5(!!GITHUB_REPOSITORY, "GITHUB_REPOSITORY, i.e. <owner/reponame> from github, was unexpectedly undefined in the runtime environment.");
-const PULLY_SLACK_TOKEN = process.env.PULLY_SLACK_TOKEN;
-const PULLY_SLACK_CHANNEL = process.env.PULLY_SLACK_CHANNEL;
+const PULLY_SLACK_TOKEN = coreExports.getInput('PULLY_SLACK_TOKEN');
+const PULLY_SLACK_CHANNEL = coreExports.getInput('PULLY_SLACK_CHANNEL');
 require$$0$5(!!PULLY_SLACK_TOKEN, "PULLY_SLACK_TOKEN was not defined in the environment");
 require$$0$5(!!PULLY_SLACK_CHANNEL, "PULLY_SLACK_CHANNEL (the slack channel id) was not defined in the environment");
 const postToSlack = async (slackMessageContent, prNumber) => {
