@@ -8,4 +8,4 @@ description: Runs pully, a little utility to write one slack message per pr that
 
 runs:
   using: "node20"
-  main: app.js
+  main: dist/index.js
