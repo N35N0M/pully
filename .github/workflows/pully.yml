@@ -1,33 +1,28 @@
+# Dogfooding
 on:
-  pull_request:
-    types: [opened, reopened, closed, edited, review_requested, ready_for_review, auto_merge_enabled, auto_merge_disabled, converted_to_draft]
-  pull_request_review:
-    types: [submitted]
+ pull_request:
+   types: [opened, reopened, closed, edited, review_requested, ready_for_review, auto_merge_enabled, auto_merge_disabled, converted_to_draft]
+ pull_request_review:
+   types: [submitted]
 
 concurrency:
-  group: pully-${{github.event.pull_request.number}}
-  # Github concurrency lacks some important functionality (max 1 pending job in the group is allowed)
-  # So we just have to cancel old jobs and let the latest job for a PR do the heavy lifting
-  cancel-in-progress: true 
+ group: pully-${{github.event.pull_request.number}}
+  Github concurrency lacks some important functionality (max 1 pending job in the group is allowed)
+  So we just have to cancel old jobs and let the latest job for a PR do the heavy lifting
+ cancel-in-progress: true 
 
 jobs:
-  pully:
+  run_pully:
     runs-on: ubuntu-latest
-    permissions:
+    name: Pully running as a github action
+    permissions: # TODO perhaps require a more fine-scoped token that can just write to the pully state branch...? And PR data
       contents: write
       pull-requests: read
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js version specified in .nvmrc
-        uses: actions/setup-node@v4
+      - id: foo
+        uses: N35N0M/pully@f37a79260573d310a97afe116d9c97274d6155ea
         with:
-          node-version-file: ".github/workflows/pully/.nvmrc"
-      - run: npm ci
-        working-directory: '.github/workflows/pully'
-      - run: npm run pully
-        working-directory: '.github/workflows/pully'
-        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULLY_SLACK_CHANNEL: ${{ secrets.PULLY_SLACK_CHANNEL }}
           PULLY_SLACK_TOKEN: ${{ secrets.PULLY_SLACK_TOKEN }}
-    if: always()

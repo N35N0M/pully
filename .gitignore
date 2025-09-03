@@ -80,7 +80,6 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
 
 # Gatsby files
 .cache/
@@ -139,7 +138,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 *.pem
-*.js 
 *.js.map
 *.d.ts
 

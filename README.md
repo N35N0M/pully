@@ -17,15 +17,12 @@ This is self-contained in the repo, and required no extra running services if yo
 It's important that any branch protection rules allows GITHUB_TOKEN to write to this branch. **Note that the state is readable for everyone if this is a public repo.** The info present in the state is:
     - Name of the github repository (if you can reach the repo, you know this already)
     - Pull request numbers in the repository (if you can reach the repo, you know this already)
-    - Github usernames of reviewers in those PRs (if you can reach the repo, you know this already)
-    - The review status the users gave (approved/changes requested/review requested | if you can reach the repo, you know this already)
     - The message timestamp of the original slack message per pr (not considered sensitive. You cant do anything with this timestamp without read/write permission to the slack channel, and you need to know the slack channel)
+    - Any provided github usernames
     - (Optional): The first name and the slack ID of github authors. **This will only be part of the state if committed to the state in step 5**
-5. Commit the initial pullydata.json to the `pully-persistant-state-do-not-use-for-coding`, where you specify optional information about the authors. If you do not wish to share this information, the only effect is that the slack message wont @-mention requested reviewers, and we will use github usernames instead of first names when reporting approvals and change requests. 
+5. Commit the initial `pullystate.json` to the `pully-persistent-state-do-not-use-for-coding`, where you specify optional information about the authors. If you do not wish to share this information, the only effect is that the slack message wont @-mention requested reviewers, and we will use github usernames instead of first names when reporting approvals and change requests. 
 ```
 {
-  "repodata": {
-  },
   "known_authors": [
     {
       "githubUsername": "kristoffer-monsen-bulder",
