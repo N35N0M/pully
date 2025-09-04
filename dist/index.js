@@ -61170,12 +61170,12 @@ console.log(githubExports.context);
 // TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
 const GITHUB_REPOSITORY_OWNER = githubExports.context.payload.repository?.owner.login;
 const GITHUB_REPOSITORY = githubExports.context.payload.repository?.name;
-const GITHUB_TOKEN = coreExports.getInput('GITHUB_TOKEN');
+const GITHUB_TOKEN = coreExports.getInput("GITHUB_TOKEN");
 require$$0$5(!!GITHUB_TOKEN, "GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch");
 require$$0$5(!!GITHUB_REPOSITORY_OWNER, "GITHUB_REPOSITORY_OWNER, i.e. the owner of the repo this is running for, was unexpectedly undefined in the runtime environment!");
 require$$0$5(!!GITHUB_REPOSITORY, "GITHUB_REPOSITORY, i.e. <owner/reponame> from github, was unexpectedly undefined in the runtime environment.");
-const PULLY_SLACK_TOKEN = coreExports.getInput('PULLY_SLACK_TOKEN');
-const PULLY_SLACK_CHANNEL = coreExports.getInput('PULLY_SLACK_CHANNEL');
+const PULLY_SLACK_TOKEN = coreExports.getInput("PULLY_SLACK_TOKEN");
+const PULLY_SLACK_CHANNEL = coreExports.getInput("PULLY_SLACK_CHANNEL");
 require$$0$5(!!PULLY_SLACK_TOKEN, "PULLY_SLACK_TOKEN was not defined in the environment");
 require$$0$5(!!PULLY_SLACK_CHANNEL, "PULLY_SLACK_CHANNEL (the slack channel id) was not defined in the environment");
 const postToSlack = async (slackMessageContent, prNumber) => {
@@ -61345,7 +61345,18 @@ const handlePullRequestReviewSubmitted = async (pullyRepodataCache, payload) => 
     console.log("Received a pull request review submitted event");
     const prAuthor = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, payload.pull_request.user?.login ?? "undefined");
     const prData = payload.pull_request;
-    const slackMessage = await constructSlackMessage(pullyRepodataCache, prAuthor, prData.title, prData.number, prData.state, payload.repository.full_name, prData.html_url, undefined, undefined);
+    let prStatus = prData.state;
+    // Handle special states
+    if (!prData.merged_at && prData.state == "closed") {
+        prStatus = "closed";
+    }
+    else if (!!prData.merged_at) {
+        prStatus = "merged";
+    }
+    else if (prData.draft) {
+        prStatus = "draft";
+    }
+    const slackMessage = await constructSlackMessage(pullyRepodataCache, prAuthor, prData.title, prData.number, prStatus, payload.repository.full_name, prData.html_url, undefined, undefined);
     await postToSlack(slackMessage, prData.number);
 };
 const handlePullRequestReviewRequested = async (pullyRepodataCache, payload) => {
@@ -61355,11 +61366,15 @@ const handlePullRequestGeneric = async (pullyRepodataCache, payload) => {
     const prData = payload.pull_request;
     const author = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, prData.user.login);
     let prStatus = prData.state;
-    if (prData.draft) {
-        prStatus = "draft";
+    // Handle special states
+    if (!prData.merged && prStatus == "closed") {
+        prStatus = "closed";
     }
-    if (prData.merged_at != null) {
+    else if (!!prData.merged) {
         prStatus = "merged";
+    }
+    else if (prData.draft) {
+        prStatus = "draft";
     }
     const slackMessage = await constructSlackMessage(pullyRepodataCache, author, prData.title, prData.number, prStatus, payload.repository.full_name, prData.html_url, prData.additions, prData.deletions);
     await postToSlack(slackMessage, prData.number);
