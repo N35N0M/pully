@@ -24,3 +24,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULLY_SLACK_CHANNEL: ${{ secrets.PULLY_SLACK_CHANNEL }}
           PULLY_SLACK_TOKEN: ${{ secrets.PULLY_SLACK_TOKEN }}
+          PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: "Yes please"
