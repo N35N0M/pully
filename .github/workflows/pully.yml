@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: foo
-        uses: N35N0M/pully@f37a79260573d310a97afe116d9c97274d6155ea
+        uses: N35N0M/pully@bdcdb1bd76b4944917c15015e52573ef1d2b1304
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULLY_SLACK_CHANNEL: ${{ secrets.PULLY_SLACK_CHANNEL }}
