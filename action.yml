@@ -1,8 +1,7 @@
 name: Run pully
 description: Runs pully, a little utility to write one slack message per pr that is constantly edited when the status changes.
 
-# TODO input to tune what to do on draft (dont post, remove message, etc)
-# TODO input to tune what to do on closed (not merged. Remove the message? Allow reposting later?)
+# TODO input to tune what to do on closed draft (Remove the message? Allow reposting later?)
 inputs:
   GITHUB_TOKEN: 
     description: The github token with repo read/write permissions (needed for pully state)
@@ -13,7 +12,9 @@ inputs:
   PULLY_SLACK_TOKEN:
     description: The slack app token that has chat:write access only to the channel it is added to
     required: true  
-# TODO secret input? Is it even defined in the interface...?
+  POST_INITIAL_DRAFT:
+    description: If set to any value (we dont have boolean types in reusable actions?), it will post to slack when the draft is made. Elsewise it will not post before being marked ready for review
+    required: false
 
 runs:
   using: "node20"
