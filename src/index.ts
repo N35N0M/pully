@@ -28,7 +28,7 @@ console.log(github.context);
 // TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
 const GITHUB_REPOSITORY_OWNER = github.context.payload.repository?.owner.login;
 const GITHUB_REPOSITORY = github.context.payload.repository?.name;
-const GITHUB_TOKEN = core.getInput('GITHUB_TOKEN');
+const GITHUB_TOKEN = core.getInput("GITHUB_TOKEN");
 assert(
 	!!GITHUB_TOKEN,
 	"GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch",
@@ -42,8 +42,8 @@ assert(
 	"GITHUB_REPOSITORY, i.e. <owner/reponame> from github, was unexpectedly undefined in the runtime environment.",
 );
 
-const PULLY_SLACK_TOKEN = core.getInput('PULLY_SLACK_TOKEN');
-const PULLY_SLACK_CHANNEL = core.getInput('PULLY_SLACK_CHANNEL');
+const PULLY_SLACK_TOKEN = core.getInput("PULLY_SLACK_TOKEN");
+const PULLY_SLACK_CHANNEL = core.getInput("PULLY_SLACK_CHANNEL");
 assert(
 	!!PULLY_SLACK_TOKEN,
 	"PULLY_SLACK_TOKEN was not defined in the environment",
@@ -94,7 +94,7 @@ const postToSlack = async (slackMessageContent: string, prNumber: number) => {
 		);
 
 		const timestampFile: { timestamp: string } = JSON.parse(
-      // @ts-expect-error need to assert that this is file somehow
+			// @ts-expect-error need to assert that this is file somehow
 			atob(pullyStateRaw.data.content),
 		);
 		existingMessageTimestamp = timestampFile.timestamp;
@@ -301,12 +301,22 @@ const handlePullRequestReviewSubmitted = async (
 	);
 
 	const prData = payload.pull_request;
+	let prStatus: PrState = prData.state;
+	// Handle special states
+	if (!prData.merged_at && prData.state == "closed") {
+		prStatus = "closed";
+	} else if (!!prData.merged_at) {
+		prStatus = "merged";
+	} else if (prData.draft) {
+		prStatus = "draft";
+	}
+
 	const slackMessage = await constructSlackMessage(
 		pullyRepodataCache,
 		prAuthor,
 		prData.title,
 		prData.number,
-		prData.state,
+		prStatus,
 		payload.repository.full_name,
 		prData.html_url,
 		undefined,
@@ -336,11 +346,13 @@ const handlePullRequestGeneric = async (
 
 	let prStatus: PrState = prData.state;
 
-	if (prData.draft) {
-		prStatus = "draft";
-	}
-	if (prData.merged_at != null) {
+	// Handle special states
+	if (!prData.merged && prStatus == "closed") {
+		prStatus = "closed";
+	} else if (!!prData.merged) {
 		prStatus = "merged";
+	} else if (prData.draft) {
+		prStatus = "draft";
 	}
 
 	const slackMessage = await constructSlackMessage(
