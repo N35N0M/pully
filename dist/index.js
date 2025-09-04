@@ -61162,7 +61162,6 @@ var githubExports = requireGithub();
 // TODO: Need cleanup support after a PR is merged to avoid having lots of dead files in state
 // TODO: We need history from time to time
 // TODO: Opt-in daily summary in the morning of workdays
-// TODO aaaargh the mess
 const eventName = githubExports.context.eventName;
 coreExports.info(`The eventName: ${eventName}`);
 console.log(githubExports.context);
@@ -61249,7 +61248,8 @@ const getAuthorInfoFromGithubLogin = (authorInfos, githubLogin) => {
         firstName: undefined,
     };
 };
-const constructSlackMessage = async (pullyRepodataCache, author, prTitle, prNumber, prState, repoFullname, prUrl, lineAdds, lineRemovals) => {
+const constructSlackMessage = async (pullyRepodataCache, author, prTitle, prNumber, prState, repoOwner, repoName, prUrl, lineAdds, lineRemovals) => {
+    const hideRepositoryOwnerInSlackMessage = coreExports.getInput("PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE") !== "";
     const authorToUse = author.firstName ?? author.githubUsername;
     let statusSlackmoji = "";
     switch (prState) {
@@ -61270,8 +61270,12 @@ const constructSlackMessage = async (pullyRepodataCache, author, prTitle, prNumb
     if (lineAdds !== undefined && lineRemovals !== undefined) {
         linediff = `(+${lineAdds}/-${lineRemovals})`;
     }
+    let repoDisplayName = `${repoOwner}/${repoName}`;
+    if (hideRepositoryOwnerInSlackMessage) {
+        repoDisplayName = repoName;
+    }
     // TODO: need to figure out how to keep '>' in the text without breaking the slack post link
-    let text = `<${prUrl}|[${repoFullname}] ${prTitle.replaceAll(">", "")} (#${prNumber})> ${linediff} by ${authorToUse}`;
+    let text = `<${prUrl}|[${repoDisplayName}] ${prTitle.replaceAll(">", "")} (#${prNumber})> ${linediff} by ${authorToUse}`;
     const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
     const prReviews = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
         owner: GITHUB_REPOSITORY_OWNER,
@@ -61362,7 +61366,7 @@ const handlePullRequestReviewSubmitted = async (pullyRepodataCache, payload) => 
     else if (prData.draft) {
         prStatus = "draft";
     }
-    const slackMessage = await constructSlackMessage(pullyRepodataCache, prAuthor, prData.title, prData.number, prStatus, payload.repository.full_name, prData.html_url, undefined, undefined);
+    const slackMessage = await constructSlackMessage(pullyRepodataCache, prAuthor, prData.title, prData.number, prStatus, payload.repository.owner.login, payload.repository.name, prData.html_url, undefined, undefined);
     await postToSlack(slackMessage, prData.number, prStatus === "draft");
 };
 const handlePullRequestReviewRequested = async (pullyRepodataCache, payload) => {
@@ -61382,7 +61386,7 @@ const handlePullRequestGeneric = async (pullyRepodataCache, payload) => {
     else if (prData.draft) {
         prStatus = "draft";
     }
-    const slackMessage = await constructSlackMessage(pullyRepodataCache, author, prData.title, prData.number, prStatus, payload.repository.full_name, prData.html_url, prData.additions, prData.deletions);
+    const slackMessage = await constructSlackMessage(pullyRepodataCache, author, prData.title, prData.number, prStatus, payload.repository.owner.login, payload.repository.name, prData.html_url, prData.additions, prData.deletions);
     await postToSlack(slackMessage, prData.number, prStatus === "draft");
 };
 const handlePullRequestOpened = async (pullyRepodataCache, payload) => {

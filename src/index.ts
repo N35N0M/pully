@@ -19,7 +19,6 @@ import { Octokit } from "octokit";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 
-// TODO aaaargh the mess
 const eventName = github.context.eventName;
 core.info(`The eventName: ${eventName}`);
 console.log(github.context);
@@ -64,7 +63,6 @@ type ReviewerState =
 
 type GithubUsername = string;
 type Reviewers = Record<GithubUsername, ReviewerState>;
-type RepoFullname = string;
 type PullyData = {
 	known_authors: AuthorInfo[];
 };
@@ -173,11 +171,15 @@ const constructSlackMessage = async (
 	prTitle: string,
 	prNumber: PrNumber,
 	prState: PrState,
-	repoFullname: RepoFullname,
+	repoOwner: string,
+	repoName: string,
 	prUrl: string,
 	lineAdds?: number,
 	lineRemovals?: number,
 ) => {
+	const hideRepositoryOwnerInSlackMessage =
+		core.getInput("PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE") !== "";
+
 	const authorToUse = author.firstName ?? author.githubUsername;
 
 	let statusSlackmoji = "";
@@ -201,8 +203,13 @@ const constructSlackMessage = async (
 		linediff = `(+${lineAdds}/-${lineRemovals})`;
 	}
 
+	let repoDisplayName = `${repoOwner}/${repoName}`;
+	if (hideRepositoryOwnerInSlackMessage) {
+		repoDisplayName = repoName;
+	}
+
 	// TODO: need to figure out how to keep '>' in the text without breaking the slack post link
-	let text = `<${prUrl}|[${repoFullname}] ${prTitle.replaceAll(">", "")} (#${prNumber})> ${linediff} by ${authorToUse}`;
+	let text = `<${prUrl}|[${repoDisplayName}] ${prTitle.replaceAll(">", "")} (#${prNumber})> ${linediff} by ${authorToUse}`;
 
 	const octokit = new Octokit({ auth: GITHUB_TOKEN });
 	const prReviews = await octokit.request(
@@ -330,7 +337,8 @@ const handlePullRequestReviewSubmitted = async (
 		prData.title,
 		prData.number,
 		prStatus,
-		payload.repository.full_name,
+		payload.repository.owner.login,
+		payload.repository.name,
 		prData.html_url,
 		undefined,
 		undefined,
@@ -374,7 +382,8 @@ const handlePullRequestGeneric = async (
 		prData.title,
 		prData.number,
 		prStatus,
-		payload.repository.full_name,
+		payload.repository.owner.login,
+		payload.repository.name,
 		prData.html_url,
 		prData.additions,
 		prData.deletions,
