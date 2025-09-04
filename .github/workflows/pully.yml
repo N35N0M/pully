@@ -19,9 +19,7 @@ jobs:
       contents: write
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
-      - id: foo
-        uses: N35N0M/pully@bdcdb1bd76b4944917c15015e52573ef1d2b1304
+      - uses: N35N0M/pully@8914d635cdcc9fb218f70822f75ca5e9b4029a76
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULLY_SLACK_CHANNEL: ${{ secrets.PULLY_SLACK_CHANNEL }}

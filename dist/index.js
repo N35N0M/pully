@@ -61178,7 +61178,8 @@ const PULLY_SLACK_TOKEN = coreExports.getInput("PULLY_SLACK_TOKEN");
 const PULLY_SLACK_CHANNEL = coreExports.getInput("PULLY_SLACK_CHANNEL");
 require$$0$5(!!PULLY_SLACK_TOKEN, "PULLY_SLACK_TOKEN was not defined in the environment");
 require$$0$5(!!PULLY_SLACK_CHANNEL, "PULLY_SLACK_CHANNEL (the slack channel id) was not defined in the environment");
-const postToSlack = async (slackMessageContent, prNumber) => {
+const postToSlack = async (slackMessageContent, prNumber, isDraft) => {
+    const postingInitialDraftsRequested = coreExports.getInput("POST_INITIAL_DRAFT") !== "";
     // TODO: Determine existing message timestamp by checking state for timestamp file
     const web = new distExports.WebClient(PULLY_SLACK_TOKEN);
     const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
@@ -61199,6 +61200,11 @@ const postToSlack = async (slackMessageContent, prNumber) => {
     catch (e) {
         console.log("Error when getting existing timestamp...");
         console.log(e); // Assuming file not found
+    }
+    // Well, initial for Pully anyway.
+    const isInitialDraft = isDraft && existingMessageTimestamp === undefined;
+    if (isInitialDraft && !postingInitialDraftsRequested) {
+        return;
     }
     if (existingMessageTimestamp) {
         web.chat.update({
@@ -61357,7 +61363,7 @@ const handlePullRequestReviewSubmitted = async (pullyRepodataCache, payload) => 
         prStatus = "draft";
     }
     const slackMessage = await constructSlackMessage(pullyRepodataCache, prAuthor, prData.title, prData.number, prStatus, payload.repository.full_name, prData.html_url, undefined, undefined);
-    await postToSlack(slackMessage, prData.number);
+    await postToSlack(slackMessage, prData.number, prStatus === "draft");
 };
 const handlePullRequestReviewRequested = async (pullyRepodataCache, payload) => {
     handlePullRequestGeneric(pullyRepodataCache, payload);
@@ -61377,7 +61383,7 @@ const handlePullRequestGeneric = async (pullyRepodataCache, payload) => {
         prStatus = "draft";
     }
     const slackMessage = await constructSlackMessage(pullyRepodataCache, author, prData.title, prData.number, prStatus, payload.repository.full_name, prData.html_url, prData.additions, prData.deletions);
-    await postToSlack(slackMessage, prData.number);
+    await postToSlack(slackMessage, prData.number, prStatus === "draft");
 };
 const handlePullRequestOpened = async (pullyRepodataCache, payload) => {
     console.log(`Received a pull request open event for #${payload.pull_request.url}`);
