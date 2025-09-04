@@ -1,6 +1,6 @@
 {
   "name": "pully",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A github app that reports PR statuses to a slack channel in a condensed manner.",
   "type": "module",
   "exports": {
