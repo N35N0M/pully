@@ -61180,9 +61180,6 @@ require$$0$5(!!PULLY_SLACK_TOKEN, "PULLY_SLACK_TOKEN was not defined in the envi
 require$$0$5(!!PULLY_SLACK_CHANNEL, "PULLY_SLACK_CHANNEL (the slack channel id) was not defined in the environment");
 const postToSlack = async (slackMessageContent, prNumber, isDraft) => {
     const postingInitialDraftsRequested = coreExports.getInput("POST_INITIAL_DRAFT") !== "";
-    if (isDraft && !postingInitialDraftsRequested) {
-        return;
-    }
     // TODO: Determine existing message timestamp by checking state for timestamp file
     const web = new distExports.WebClient(PULLY_SLACK_TOKEN);
     const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
@@ -61203,6 +61200,11 @@ const postToSlack = async (slackMessageContent, prNumber, isDraft) => {
     catch (e) {
         console.log("Error when getting existing timestamp...");
         console.log(e); // Assuming file not found
+    }
+    // Well, initial for Pully anyway.
+    const isInitialDraft = isDraft && existingMessageTimestamp === undefined;
+    if (isInitialDraft && !postingInitialDraftsRequested) {
+        return;
     }
     if (existingMessageTimestamp) {
         web.chat.update({

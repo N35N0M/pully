@@ -75,12 +75,13 @@ interface AuthorInfo {
 	firstName?: string;
 }
 
-const postToSlack = async (slackMessageContent: string, prNumber: number, isDraft: boolean) => {
-  const postingInitialDraftsRequested = core.getInput("POST_INITIAL_DRAFT") !== "";
-  
-  if (isDraft && !postingInitialDraftsRequested) {
-    return;
-  }
+const postToSlack = async (
+	slackMessageContent: string,
+	prNumber: number,
+	isDraft: boolean,
+) => {
+	const postingInitialDraftsRequested =
+		core.getInput("POST_INITIAL_DRAFT") !== "";
 
 	// TODO: Determine existing message timestamp by checking state for timestamp file
 	const web = new WebClient(PULLY_SLACK_TOKEN);
@@ -107,6 +108,12 @@ const postToSlack = async (slackMessageContent: string, prNumber: number, isDraf
 	} catch (e: unknown) {
 		console.log("Error when getting existing timestamp...");
 		console.log(e); // Assuming file not found
+	}
+
+	// Well, initial for Pully anyway.
+	const isInitialDraft = isDraft && existingMessageTimestamp === undefined;
+	if (isInitialDraft && !postingInitialDraftsRequested) {
+		return;
 	}
 
 	if (existingMessageTimestamp) {
