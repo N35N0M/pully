@@ -62,7 +62,7 @@ type ReviewerState =
 	| "dismissed";
 
 type GithubUsername = string;
-type Reviewers = Record<GithubUsername, ReviewerState>;
+type Reviewers = Record<GithubUsername, {timestamp: Date, state: ReviewerState}>;
 type PullyData = {
 	known_authors: AuthorInfo[];
 };
@@ -238,23 +238,23 @@ const constructSlackMessage = async (
 
 	const reviews: Reviewers = {};
 
-	// Review requests shall be cleared once review is submitted...
+	// According to the docs, requested_reviewers clear when they submit a review.
+	// The API has no timestamp info for the review request, so we got to trust that
+	// and just set a dummy timestamp that is guaranteed to be lower than current time.
 	for (const request of reviewRequests.data.users.reverse()) {
-		// Only use the latest review per user
-		if (!(request.login in prReviews)) {
-			reviews[request.login] = "review_requested";
-		}
+		reviews[request.login] = {state: "review_requested", timestamp: new Date(0)};
 	}
 
-	// Iterate through the reviews backwards as the latest reviews are reported first...
+	// If the reviewer doesnt have an active review request, they might have a review going
 	for (const review of prReviews.data.reverse()) {
 		if (review.user?.login !== undefined) {
 			// Only use the latest review per user
-			if (!(review.user.login in prReviews)) {
+			const timestamp = new Date(review.submitted_at ?? 0)
+			if (!(review.user.login in reviews) || (review.user.login in reviews && reviews[review.user.login].state !== "review_requested" && (reviews[review.user.login].timestamp < timestamp))) {
 				if (review.state === "APPROVED") {
-					reviews[review.user.login] = "approved";
+					reviews[review.user.login] = {state: "approved", timestamp: timestamp};
 				} else if (review.state === "CHANGES_REQUESTED") {
-					reviews[review.user.login] = "requested-changes";
+					reviews[review.user.login] = {state: "requested-changes", timestamp: timestamp};
 				}
 			}
 		}
@@ -269,7 +269,7 @@ const constructSlackMessage = async (
 			pullyRepodataCache.known_authors,
 			reviewer,
 		);
-		switch (state) {
+		switch (state.state) {
 			case "approved":
 				approvers.add(reviewerData.firstName ?? reviewerData.githubUsername);
 				break;
