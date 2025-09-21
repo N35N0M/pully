@@ -61532,7 +61532,7 @@ const constructSlackMessage = async (pullyRepodataCache, author, prTitle, prNumb
     if (author.slackmoji) {
         prDescription += ` ${author.slackmoji}`;
     }
-    let leftHandSideText = `<${prUrl}|[${repoDisplayName}] ${prDescription}`;
+    let leftHandSideText = `<${prUrl}|[${repoDisplayName}]> ${prDescription}`;
     const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
     const prReviews = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
         owner: GITHUB_REPOSITORY_OWNER,

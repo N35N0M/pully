@@ -221,7 +221,7 @@ const constructSlackMessage = async (
 	if (author.slackmoji){
 		prDescription += ` ${author.slackmoji}`
 	}
-	let leftHandSideText = `<${prUrl}|[${repoDisplayName}] ${prDescription}`;
+	let leftHandSideText = `<${prUrl}|[${repoDisplayName}]> ${prDescription}`;
 
 	const octokit = new Octokit({ auth: GITHUB_TOKEN });
 	const prReviews = await octokit.request(
