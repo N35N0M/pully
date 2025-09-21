@@ -61529,10 +61529,10 @@ const constructSlackMessage = async (pullyRepodataCache, author, prTitle, prNumb
     }
     // TODO: need to figure out how to keep '>' in the text without breaking the slack post link
     let prDescription = `${prTitle.replaceAll(">", "")} (#${prNumber})> ${linediff} by ${authorToUse}`;
-    if (author.slackmoji) {
-        prDescription += ` ${author.slackmoji}`;
-    }
     let leftHandSideText = `<${prUrl}|[${repoDisplayName}]> ${prDescription}`;
+    if (author.slackmoji) {
+        leftHandSideText += ` ${author.slackmoji}`;
+    }
     const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
     const prReviews = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
         owner: GITHUB_REPOSITORY_OWNER,
@@ -61610,6 +61610,7 @@ const constructSlackMessage = async (pullyRepodataCache, author, prTitle, prNumb
         leftHandSideTextLength += 2; // One space and one rendered slackmoji
     }
     if (leftHandSideTextLength > PR_DESCRIPTION_CONTENT_LENGTH) {
+        // -2 since slice is non-inclusive at end, so we get ... while keeping to max length
         leftHandSideText = leftHandSideText.slice(0, PR_DESCRIPTION_CONTENT_LENGTH - 2);
         leftHandSideText += "...";
     }
