@@ -28,6 +28,7 @@ console.log(github.context);
 const GITHUB_REPOSITORY_OWNER = github.context.payload.repository?.owner.login;
 const GITHUB_REPOSITORY = github.context.payload.repository?.name;
 const GITHUB_TOKEN = core.getInput("GITHUB_TOKEN");
+const PR_DESCRIPTION_CONTENT_LENGTH = Number(core.getInput("PR_DESCRIPTION_CONTENT_LENGTH"))
 assert(
 	!!GITHUB_TOKEN,
 	"GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch",
@@ -71,6 +72,12 @@ interface AuthorInfo {
 	githubUsername?: string;
 	slackMemberId?: string;
 	firstName?: string;
+
+	/**
+	 * If set, should be one slackmoji to be posted alongside firstname,
+	 * i.e. a string staring and ending with colon ":my-slackmoji:"
+	 */
+	slackmoji?: string;
 }
 
 const postToSlack = async (
@@ -182,19 +189,19 @@ const constructSlackMessage = async (
 
 	const authorToUse = author.firstName ?? author.githubUsername;
 
-	let statusSlackmoji = "";
+	let prStatusSlackmoji = "";
 	switch (prState) {
 		case "closed":
-			statusSlackmoji = ":github-closed:";
+			prStatusSlackmoji = ":github-closed:";
 			break;
 		case "open":
-			statusSlackmoji = ":github-pr:";
+			prStatusSlackmoji = ":github-pr:";
 			break;
 		case "merged":
-			statusSlackmoji = ":github-merged:";
+			prStatusSlackmoji = ":github-merged:";
 			break;
 		case "draft":
-			statusSlackmoji = ":github-pr-draft:";
+			prStatusSlackmoji = ":github-pr-draft:";
 			break;
 	}
 
@@ -209,7 +216,11 @@ const constructSlackMessage = async (
 	}
 
 	// TODO: need to figure out how to keep '>' in the text without breaking the slack post link
-	let text = `<${prUrl}|[${repoDisplayName}] ${prTitle.replaceAll(">", "")} (#${prNumber})> ${linediff} by ${authorToUse}`;
+	let prDescription = `${prTitle.replaceAll(">", "")} (#${prNumber})> ${linediff} by ${authorToUse}`;
+	if (author.slackmoji){
+		prDescription += ` ${author.slackmoji}`
+	}
+	let leftHandSideText = `<${prUrl}|[${repoDisplayName}] ${prDescription}`;
 
 	const octokit = new Octokit({ auth: GITHUB_TOKEN });
 	const prReviews = await octokit.request(
@@ -271,11 +282,11 @@ const constructSlackMessage = async (
 		);
 		switch (state) {
 			case "approved":
-				approvers.add(reviewerData.firstName ?? reviewerData.githubUsername);
+				approvers.add(`${reviewerData.firstName ?? reviewerData.githubUsername}${reviewerData.slackmoji ? ` ${reviewerData.slackmoji}`: ""}`);
 				break;
 			case "requested-changes":
 				change_requesters.add(
-					reviewerData.firstName ?? reviewerData.githubUsername,
+					`${reviewerData.firstName ?? reviewerData.githubUsername}${reviewerData.slackmoji ? ` ${reviewerData.slackmoji}`: ""}`
 				);
 				break;
 			case "review_requested":
@@ -284,29 +295,46 @@ const constructSlackMessage = async (
 		}
 	}
 
+	let reviewStatusText = ""
 	if (approvers.size !== 0) {
-		text += " | :github-approve: " + Array.from(approvers).join(", ");
+		reviewStatusText += " | :github-approve: " + Array.from(approvers).join(", ");
 	}
 
 	if (prState === "open") {
 		if (change_requesters.size !== 0) {
-			text +=
+			reviewStatusText +=
 				" | :github-changes-requested: " +
 				Array.from(change_requesters).join(", ");
 		}
 
 		if (review_requests.size !== 0) {
-			text += " | :code-review: " + Array.from(review_requests).join(", ");
+			reviewStatusText += " | :code-review: " + Array.from(review_requests).join(", ");
 		}
 	}
 
-	if (prState === "closed" || prState === "merged") {
-		text = `~${text}~`;
+	// repoDisplayName.length + prDescription.length isnt all the text content here
+	// but it is what varies, so it should be good enough
+	let leftHandSideTextLength = repoDisplayName.length + prDescription.length;
+	if (author.slackmoji){
+		leftHandSideTextLength += 2 // One space and one rendered slackmoji
+	}
+	if (leftHandSideTextLength > PR_DESCRIPTION_CONTENT_LENGTH){
+		leftHandSideText = leftHandSideText.slice(0, PR_DESCRIPTION_CONTENT_LENGTH-2);
+		leftHandSideText += "...";
+	}
+	else if (leftHandSideTextLength < PR_DESCRIPTION_CONTENT_LENGTH){
+		leftHandSideText.padEnd(PR_DESCRIPTION_CONTENT_LENGTH, " ")
 	}
 
-	text = `${statusSlackmoji} ${text}`;
+	// Strikethrough
+	if (prState === "closed" || prState === "merged") {
+		leftHandSideText = `~${leftHandSideText}~`;
+	}
 
-	return text;
+	const slackMessage = `${prStatusSlackmoji} ${leftHandSideText} ${reviewStatusText}`;
+
+
+	return slackMessage;
 };
 
 const handlePullRequestReviewSubmitted = async (

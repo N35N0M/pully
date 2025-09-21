@@ -18,6 +18,11 @@ inputs:
   PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE:
     description: If set to any value that is not the empty string, the slack message will not print the repo owner in cleartext, only the repo name. This makes the message more compact, but makes it more difficult to see which organization or team this is opened in.
     required: false
+  PR_DESCRIPTION_CONTENT_LENGTH:
+    description: The max length of the content of everything before the | <review states> part of the slack message
+    required: false
+    default: "120"
+
 
 runs:
   using: "node20"
