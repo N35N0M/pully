@@ -21,7 +21,7 @@ inputs:
   PR_DESCRIPTION_CONTENT_LENGTH:
     description: The max length of the content of everything before the | <review states> part of the slack message
     required: false
-    default: "120"
+    default: "100"
 
 
 runs:

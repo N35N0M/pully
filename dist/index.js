@@ -61421,7 +61421,7 @@ console.log(githubExports.context);
 const GITHUB_REPOSITORY_OWNER = githubExports.context.payload.repository?.owner.login;
 const GITHUB_REPOSITORY = githubExports.context.payload.repository?.name;
 const GITHUB_TOKEN = coreExports.getInput("GITHUB_TOKEN");
-const PR_DESCRIPTION_CONTENT_LENGTH = Number(coreExports.getInput("PR_DESCRIPTION_CONTENT_LENGTH"));
+const PR_DESCRIPTION_CONTENT_LENGTH = Number(coreExports.getInput("PR_DESCRIPTION_CONTENT_LENGTH") ?? "100");
 require$$0$5(!!GITHUB_TOKEN, "GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch");
 require$$0$5(!!GITHUB_REPOSITORY_OWNER, "GITHUB_REPOSITORY_OWNER, i.e. the owner of the repo this is running for, was unexpectedly undefined in the runtime environment!");
 require$$0$5(!!GITHUB_REPOSITORY, "GITHUB_REPOSITORY, i.e. <owner/reponame> from github, was unexpectedly undefined in the runtime environment.");
@@ -61498,6 +61498,7 @@ const getAuthorInfoFromGithubLogin = (authorInfos, githubLogin) => {
         githubUsername: githubLogin,
         slackMemberId: undefined,
         firstName: undefined,
+        slackmoji: undefined
     };
 };
 const constructSlackMessage = async (pullyRepodataCache, author, prTitle, prNumber, prState, repoOwner, repoName, prUrl, lineAdds, lineRemovals) => {

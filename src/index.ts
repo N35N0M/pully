@@ -28,7 +28,7 @@ console.log(github.context);
 const GITHUB_REPOSITORY_OWNER = github.context.payload.repository?.owner.login;
 const GITHUB_REPOSITORY = github.context.payload.repository?.name;
 const GITHUB_TOKEN = core.getInput("GITHUB_TOKEN");
-const PR_DESCRIPTION_CONTENT_LENGTH = Number(core.getInput("PR_DESCRIPTION_CONTENT_LENGTH"))
+const PR_DESCRIPTION_CONTENT_LENGTH = Number(core.getInput("PR_DESCRIPTION_CONTENT_LENGTH") ?? "100")
 assert(
 	!!GITHUB_TOKEN,
 	"GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch",
@@ -169,6 +169,7 @@ const getAuthorInfoFromGithubLogin = (
 		githubUsername: githubLogin,
 		slackMemberId: undefined,
 		firstName: undefined,
+		slackmoji: undefined
 	};
 };
 
