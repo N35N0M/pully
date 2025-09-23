@@ -160,8 +160,6 @@ export const constructSlackMessage = async (
 	lineAdds?: number,
 	lineRemovals?: number,
 ) => {
-	const hideRepositoryOwnerInSlackMessage =
-		core.getInput("PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE") !== "";
 
 	const authorToUse = author.firstName ?? author.githubUsername;
 
@@ -187,18 +185,23 @@ export const constructSlackMessage = async (
 	}
 
 	let repoDisplayName = `${repoOwner}/${repoName}`;
-	if (hideRepositoryOwnerInSlackMessage) {
+	if (pully_options.PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE) {
 		repoDisplayName = repoName;
 	}
 
 	// TODO: need to figure out how to keep '>' in the text without breaking the slack post link
 	let prDescription = `${
 		prTitle.replaceAll(">", "")
-	} (#${prNumber})> ${linediff} by ${authorToUse}`;
+	} (#${prNumber}) ${linediff} by ${authorToUse}`;
 
-	let leftHandSideText = `<${prUrl}|[${repoDisplayName}]> ${prDescription}`;
+	const generateSlackLink = (url: string, displayText: string) => {
+		return `<${url}|${displayText}>`;
+	};
+
+	let repoNameFormatted = `[${repoDisplayName}]`;
+	let authorSlackmoji = ""
 	if (author.slackmoji) {
-		leftHandSideText += ` ${author.slackmoji}`;
+		authorSlackmoji = ` ${author.slackmoji}`;
 	}
 
 	const prReviews = await github_adapter.platform_methods.getPrReviews(pullyRepodataCache, prNumber)
@@ -296,17 +299,29 @@ export const constructSlackMessage = async (
 		leftHandSideTextLength += 2; // One space and one rendered slackmoji
 	}
 	if (leftHandSideTextLength > pully_options.max_length_left_hand_side) {
-		// -2 since slice is non-inclusive at end, so we get ... while keeping to max length
-		leftHandSideText = leftHandSideText.slice(
+		// -2 for adjusting to ...s
+		// And -2 for ??
+
+		// Note that if we truncate the string, author slackmoji never fits (since it is last)
+		// So we must compensate and truncate the whole thing
+		const desiredLength = pully_options.max_length_left_hand_side - repoNameFormatted.length -2 -2   ;
+
+		assert(desiredLength >= 0); // Just in case
+
+		prDescription = prDescription.slice(
 			0,
-			pully_options.max_length_left_hand_side - 2,
+			desiredLength
 		);
-		leftHandSideText += "...";
+		prDescription += "...";
 	} else if (
 		leftHandSideTextLength < pully_options.max_length_left_hand_side
 	) {
-		leftHandSideText.padEnd(pully_options.max_length_left_hand_side, " ");
+		prDescription +=  authorSlackmoji
+		prDescription = prDescription.padEnd(pully_options.max_length_left_hand_side + authorSlackmoji.length - 3 - repoNameFormatted.length, " ");
 	}
+
+	// Now we can construct the entire string...
+	let leftHandSideText = `${generateSlackLink(prUrl, repoNameFormatted)} ${prDescription}`
 
 	// Strikethrough
 	if (prState === "closed" || prState === "merged") {
@@ -314,7 +329,7 @@ export const constructSlackMessage = async (
 	}
 
 	const slackMessage =
-		`${prStatusSlackmoji} ${leftHandSideText} ${reviewStatusText}`;
+		`${prStatusSlackmoji} ${leftHandSideText}${reviewStatusText}`;
 
 	return slackMessage;
 };
@@ -566,6 +581,7 @@ export interface PullyOptions {
 	max_length_left_hand_side: number;
 	PULLY_SLACK_TOKEN: string;
 	PULLY_SLACK_CHANNEL: string;
+	PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: boolean
 }
 
 export interface PlatformMethods {
@@ -667,7 +683,8 @@ const main = () => {
 	const pullyOptions: PullyOptions = {
 		max_length_left_hand_side: PR_DESCRIPTION_CONTENT_LENGTH,
 		PULLY_SLACK_CHANNEL: PULLY_SLACK_CHANNEL,
-		PULLY_SLACK_TOKEN: PULLY_SLACK_TOKEN
+		PULLY_SLACK_TOKEN: PULLY_SLACK_TOKEN,
+		PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: core.getInput("PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE") !== ""
 	}
 
 	const githubAdapter: GithubAdapter = {
