@@ -34,6 +34,7 @@ import require$$6 from 'string_decoder';
 import require$$0$b from 'diagnostics_channel';
 import require$$2$4 from 'child_process';
 import require$$6$1 from 'timers';
+import { fileURLToPath } from 'node:url';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -62955,7 +62956,7 @@ const main = () => {
         }
     });
 };
-if (require.main === module) {
+if (import.meta.url === fileURLToPath(process.argv[1])) {
     main();
 }
 

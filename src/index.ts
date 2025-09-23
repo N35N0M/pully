@@ -18,6 +18,7 @@ import assert from "node:assert";
 import { Octokit } from "octokit";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { fileURLToPath } from "node:url";
 
 // Typedefs
 type PrNumber = number;
@@ -822,6 +823,6 @@ const main = () => {
 	});
 };
 
-if (require.main === module) {
+if (import.meta.url === fileURLToPath(process.argv[1])) {
   main();
 }
