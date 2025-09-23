@@ -1,7 +1,7 @@
 import { assert, assertEquals } from "jsr:@std/assert";
 import {constructSlackMessage} from "../index.ts"
 
-const invokeConstructSlackMessage = async (maxLength: number, prTitle: string, showOwner: boolean) => {
+const invokeConstructSlackMessage = async (maxLength: number, prTitle: string, showOwner: boolean, slackmoji?: string) => {
     return await constructSlackMessage(
         {
             GITHUB_TOKEN: "totallyrealgithubtoken",
@@ -28,13 +28,13 @@ const invokeConstructSlackMessage = async (maxLength: number, prTitle: string, s
             {
                 firstName: "Kris",
                 slackMemberId: "12345",
-                slackmoji: ":totally-a-slackmoji:",
+                slackmoji: slackmoji,
                 githubUsername: "n35n0m"
             }
         ]},
         {
             githubUsername: "n35n0m",
-                            slackmoji: ":totally-a-slackmoji:",
+                            slackmoji: slackmoji,
 
         },
         prTitle,
@@ -49,21 +49,21 @@ const invokeConstructSlackMessage = async (maxLength: number, prTitle: string, s
 }
 
 Deno.test("constructSlackMessage shall truncate messages larger than configured max", async () => {
-    const result = await invokeConstructSlackMessage(40, "My suuuuuuuuuuuuuuuuuuuperlongprtiiiiiiitle", false);
+    const result = await invokeConstructSlackMessage(40, "My suuuuuuuuuuuuuuuuuuuperlongprtiiiiiiitle", false, ":totally-a-slackmoji:");
     console.log(result)
-    assertEquals(result, ":github-pr: <https://github.com/N35N0M/pully/pull/19|[n35n0m/pully]> My suuuuuuuuuuuuuuuuuu...  | :github-approve: reviewer")
+    assertEquals(result, ":github-pr: <https://github.com/N35N0M/pully/pull/19|[n35n0m/pully]> My suuuuuuuuuuuuuuuuuu... | :github-approve: reviewer")
 })
 
 
 Deno.test("constructSlackMessage shall pad messages smaller than configured max", async () => {
-    const result = await invokeConstructSlackMessage(40, "My PR", true);
+    const result = await invokeConstructSlackMessage(45, "My PR", true, ":totally-a-slackmoji:");
     console.log(result)
-    assertEquals(result, ":github-pr: <https://github.com/N35N0M/pully/pull/19|[pully]> My PR (#1) (+12/-13) by n35n0m :totally-a-slackmoji:     | :github-approve: reviewer")
+    assertEquals(result, ":github-pr: <https://github.com/N35N0M/pully/pull/19|[pully]> My PR (#1) (+12/-13) by n35n0m :totally-a-slackmoji:      | :github-approve: reviewer")
 })
 
 Deno.test("constructSlackMessage output should align for similar settings, but with varying PR titles (truncate vs pad)", async () => {
-    let resultTruncated = await invokeConstructSlackMessage(45, "My suuuuuuuuuuuuuuuuuuuperlongprtiiiiiiitleeeeeeee", false); 
-    let resultPadded = await invokeConstructSlackMessage(45, "My PR", true);
+    let resultTruncated = await invokeConstructSlackMessage(45, "My suuuuuuuuuuuuuuuuuuuperlongprtiiiiiiitleeeeeeee", false,":totally-a-slackmoji:"); 
+    let resultPadded = await invokeConstructSlackMessage(45, "My PR", true, ":totally-a-slackmoji:");
 
     // Fixup slackmoji renders to just take one char of space in our non-slack environment
     resultPadded = resultPadded.replaceAll(':totally-a-slackmoji:', ':')
@@ -74,5 +74,19 @@ Deno.test("constructSlackMessage output should align for similar settings, but w
     console.log(resultPadded)
     assertEquals(resultTruncated.length, resultPadded.length)
     assertEquals(resultTruncated.indexOf('|', 45), resultPadded.indexOf('|', 45))
+})
 
+Deno.test("constructSlackMessage output should align for similar settings, but with varying PR titles (truncate vs pad) and slackmoji vs no slackmoji", async () => {
+    let resultTruncated = await invokeConstructSlackMessage(45, "My suuuuuuuuuuuuuuuuuuuperlongprtiiiiiiitleeeeeeee", false, undefined); 
+    let resultPadded = await invokeConstructSlackMessage(45, "My PR", true, ":emoji:");
+
+    // Fixup slackmoji renders to just take one char of space in our non-slack environment
+    resultPadded = resultPadded.replaceAll(':emoji:', ':')
+    resultTruncated = resultTruncated.replaceAll(':emoji:', ':')
+
+
+    console.log(resultTruncated)
+    console.log(resultPadded)
+    assertEquals(resultTruncated.length, resultPadded.length)
+    assertEquals(resultTruncated.indexOf('|', 45), resultPadded.indexOf('|', 45))
 })
