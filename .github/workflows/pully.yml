@@ -19,9 +19,10 @@ jobs:
       contents: write
       pull-requests: read
     steps:
-      - uses: N35N0M/pully@1f1a9bfb1788ef5ee659b8d02994747d74cc03d8
+      - uses: N35N0M/pully@a3a617fbebb4bc5f2ebe1d1755778d0896999bc7
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULLY_SLACK_CHANNEL: ${{ secrets.PULLY_SLACK_CHANNEL }}
           PULLY_SLACK_TOKEN: ${{ secrets.PULLY_SLACK_TOKEN }}
           PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: "Yes please"
+          PR_DESCRIPTION_CONTENT_LENGTH: 100
