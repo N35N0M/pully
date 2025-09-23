@@ -34,7 +34,6 @@ import require$$6 from 'string_decoder';
 import require$$0$b from 'diagnostics_channel';
 import require$$2$4 from 'child_process';
 import require$$6$1 from 'timers';
-import { fileURLToPath } from 'node:url';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -62535,69 +62534,6 @@ function requireGithub () {
 
 var githubExports = requireGithub();
 
-// TODO: Need cleanup support after a PR is merged to avoid having lots of dead files in state
-// TODO: We need history from time to time
-// TODO: Opt-in daily summary in the morning of workdays
-const postToSlack = async (slackMessageContent, prNumber, isDraft, githubAdapter, pullyOptions) => {
-    const postingInitialDraftsRequested = coreExports.getInput("POST_INITIAL_DRAFT") !== "";
-    // TODO: Determine existing message timestamp by checking state for timestamp file
-    const web = new distExports.WebClient(pullyOptions.PULLY_SLACK_TOKEN);
-    const octokit = new Octokit$1({ auth: githubAdapter.GITHUB_TOKEN });
-    let existingMessageTimestamp;
-    const messagePath = `messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
-    try {
-        const pullyStateRaw = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
-            repo: githubAdapter.GITHUB_REPOSITORY,
-            owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
-            path: messagePath,
-            ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
-        });
-        const timestampFile = JSON.parse(
-        // @ts-expect-error need to assert that this is file somehow
-        atob(pullyStateRaw.data.content));
-        existingMessageTimestamp = timestampFile.timestamp;
-    }
-    catch (e) {
-        console.log("Error when getting existing timestamp...");
-        console.log(e); // Assuming file not found
-    }
-    // Well, initial for Pully anyway.
-    const isInitialDraft = isDraft && existingMessageTimestamp === undefined;
-    if (isInitialDraft && !postingInitialDraftsRequested) {
-        return;
-    }
-    if (existingMessageTimestamp) {
-        web.chat.update({
-            text: slackMessageContent,
-            channel: pullyOptions.PULLY_SLACK_CHANNEL,
-            ts: existingMessageTimestamp,
-        });
-    }
-    else {
-        const value = await web.chat.postMessage({
-            text: slackMessageContent,
-            channel: pullyOptions.PULLY_SLACK_CHANNEL,
-        });
-        if (value.ts) {
-            await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-                owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
-                repo: githubAdapter.GITHUB_REPOSITORY,
-                path: messagePath,
-                branch: "refs/heads/pully-persistent-state-do-not-use-for-coding",
-                message: "Pully state update",
-                committer: {
-                    name: "Pully",
-                    email: "kris@bitheim.no",
-                },
-                content: btoa(JSON.stringify({ timestamp: value.ts })),
-                // sha: sha, We will never update the file since we have one message per pr...
-                headers: {
-                    "X-GitHub-Api-Version": "2022-11-28",
-                },
-            });
-        }
-    }
-};
 const getAuthorInfoFromGithubLogin = (authorInfos, githubLogin) => {
     const search = authorInfos.find((value) => value.githubUsername === githubLogin);
     if (search) {
@@ -62610,6 +62546,7 @@ const getAuthorInfoFromGithubLogin = (authorInfos, githubLogin) => {
         slackmoji: undefined,
     };
 };
+
 const constructSlackMessage = async (github_adapter, pully_options, pullyRepodataCache, author, prTitle, prNumber, prState, repoOwner, repoName, prUrl, lineAdds, lineRemovals) => {
     const authorToUse = author.firstName ?? author.githubUsername;
     let prStatusSlackmoji = "";
@@ -62737,6 +62674,70 @@ const constructSlackMessage = async (github_adapter, pully_options, pullyRepodat
     }
     const slackMessage = `${prStatusSlackmoji} ${leftHandSideText}${reviewStatusText}`;
     return slackMessage;
+};
+
+// TODO: Need cleanup support after a PR is merged to avoid having lots of dead files in state
+// TODO: We need history from time to time
+// TODO: Opt-in daily summary in the morning of workdays
+const postToSlack = async (slackMessageContent, prNumber, isDraft, githubAdapter, pullyOptions) => {
+    const postingInitialDraftsRequested = coreExports.getInput("POST_INITIAL_DRAFT") !== "";
+    // TODO: Determine existing message timestamp by checking state for timestamp file
+    const web = new distExports.WebClient(pullyOptions.PULLY_SLACK_TOKEN);
+    const octokit = new Octokit$1({ auth: githubAdapter.GITHUB_TOKEN });
+    let existingMessageTimestamp;
+    const messagePath = `messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
+    try {
+        const pullyStateRaw = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
+            repo: githubAdapter.GITHUB_REPOSITORY,
+            owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
+            path: messagePath,
+            ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+        });
+        const timestampFile = JSON.parse(
+        // @ts-expect-error need to assert that this is file somehow
+        atob(pullyStateRaw.data.content));
+        existingMessageTimestamp = timestampFile.timestamp;
+    }
+    catch (e) {
+        console.log("Error when getting existing timestamp...");
+        console.log(e); // Assuming file not found
+    }
+    // Well, initial for Pully anyway.
+    const isInitialDraft = isDraft && existingMessageTimestamp === undefined;
+    if (isInitialDraft && !postingInitialDraftsRequested) {
+        return;
+    }
+    if (existingMessageTimestamp) {
+        web.chat.update({
+            text: slackMessageContent,
+            channel: pullyOptions.PULLY_SLACK_CHANNEL,
+            ts: existingMessageTimestamp,
+        });
+    }
+    else {
+        const value = await web.chat.postMessage({
+            text: slackMessageContent,
+            channel: pullyOptions.PULLY_SLACK_CHANNEL,
+        });
+        if (value.ts) {
+            await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
+                owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
+                repo: githubAdapter.GITHUB_REPOSITORY,
+                path: messagePath,
+                branch: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+                message: "Pully state update",
+                committer: {
+                    name: "Pully",
+                    email: "kris@bitheim.no",
+                },
+                content: btoa(JSON.stringify({ timestamp: value.ts })),
+                // sha: sha, We will never update the file since we have one message per pr...
+                headers: {
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+            });
+        }
+    }
 };
 const handlePullRequestReviewSubmitted = async (pullyRepodataCache, payload, github_adapter, pully_options) => {
     console.log("Received a pull request review submitted event");
@@ -62956,9 +62957,5 @@ const main = () => {
         }
     });
 };
-if (import.meta.url === fileURLToPath(process.argv[1])) {
-    main();
-}
-
-export { constructSlackMessage };
+main();
 //# sourceMappingURL=index.js.map

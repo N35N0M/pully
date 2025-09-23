@@ -3,6 +3,7 @@
     "esm": true
   },
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "allowSyntheticDefaultImports": true,
     "declaration": false,
     "declarationMap": false,
@@ -14,6 +15,7 @@
     "moduleResolution": "NodeNext",
     "newLine": "lf",
     "noImplicitAny": true,
+    "noEmit": true,
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "pretty": true,

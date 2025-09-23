@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "jsr:@std/assert";
-import {constructSlackMessage} from "../index.ts"
+import {constructSlackMessage} from "../constructSlackMessage.ts"
 
 const invokeConstructSlackMessage = async (maxLength: number, prTitle: string, showOwner: boolean, slackmoji?: string) => {
     return await constructSlackMessage(
@@ -83,7 +83,6 @@ Deno.test("constructSlackMessage output should align for similar settings, but w
     // Fixup slackmoji renders to just take one char of space in our non-slack environment
     resultPadded = resultPadded.replaceAll(':emoji:', ':')
     resultTruncated = resultTruncated.replaceAll(':emoji:', ':')
-
 
     console.log(resultTruncated)
     console.log(resultPadded)
