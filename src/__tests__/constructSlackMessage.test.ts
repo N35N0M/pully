@@ -51,14 +51,14 @@ const invokeConstructSlackMessage = async (maxLength: number, prTitle: string, s
 Deno.test("constructSlackMessage shall truncate messages larger than configured max", async () => {
     const result = await invokeConstructSlackMessage(40, "My suuuuuuuuuuuuuuuuuuuperlongprtiiiiiiitle", false, ":totally-a-slackmoji:");
     console.log(result)
-    assertEquals(result, ":github-pr: <https://github.com/N35N0M/pully/pull/19|[n35n0m/pully]> My suuuuuuuuuuuuuuuuuu... | :github-approve: reviewer")
+    assertEquals(result, ":github-pr:\u{00A0}<https://github.com/N35N0M/pully/pull/19|[n35n0m/pully]> My suuuuuuuuuuuuuuuuuu...\u{00A0}| :github-approve: reviewer")
 })
 
 
 Deno.test("constructSlackMessage shall pad messages smaller than configured max", async () => {
     const result = await invokeConstructSlackMessage(45, "My PR", true, ":totally-a-slackmoji:");
     console.log(result)
-    assertEquals(result, ":github-pr: <https://github.com/N35N0M/pully/pull/19|[pully]> My PR (#1) (+12/-13) by n35n0m :totally-a-slackmoji:      | :github-approve: reviewer")
+    assertEquals(result, ":github-pr:\u{00A0}<https://github.com/N35N0M/pully/pull/19|[pully]> My PR\u{00A0}(#1)\u{00A0}(+12/-13)\u{00A0}by\u{00A0}n35n0m :totally-a-slackmoji:\u{00A0}\u{00A0}\u{00A0}\u{00A0}\u{00A0}\u{00A0}| :github-approve: reviewer")
 })
 
 Deno.test("constructSlackMessage output should align for similar settings, but with varying PR titles (truncate vs pad)", async () => {

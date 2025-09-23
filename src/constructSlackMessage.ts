@@ -53,7 +53,7 @@ export const constructSlackMessage = async (
 	}
 
 	// TODO: need to figure out how to keep '>' in the text without breaking the slack post link
-	let prDescription = `${prTitle.replaceAll(">", "")} (#${prNumber}) ${linediff} by ${authorToUse}`;
+	let prDescription = `${prTitle.replaceAll(">", "")}\u{00A0}(#${prNumber})\u{00A0}${linediff}\u{00A0}by\u{00A0}${authorToUse}`;
 
 	const generateSlackLink = (url: string, displayText: string) => {
 		return `<${url}|${displayText}>`;
@@ -131,18 +131,18 @@ export const constructSlackMessage = async (
 
 	let reviewStatusText = "";
 	if (approvers.size !== 0) {
-		reviewStatusText += " | :github-approve: " +
+		reviewStatusText += "\u{00A0}| :github-approve: " +
 			Array.from(approvers).join(", ");
 	}
 
 	if (prState === "open") {
 		if (change_requesters.size !== 0) {
-			reviewStatusText += " | :github-changes-requested: " +
+			reviewStatusText += "\u{00A0}| :github-changes-requested: " +
 				Array.from(change_requesters).join(", ");
 		}
 
 		if (review_requests.size !== 0) {
-			reviewStatusText += " | :code-review: " +
+			reviewStatusText += "\u{00A0}| :code-review: " +
 				Array.from(review_requests).join(", ");
 		}
 	}
@@ -169,7 +169,7 @@ export const constructSlackMessage = async (
 		prDescription += "...";
 	} else if (leftHandSideTextLength < pully_options.max_length_left_hand_side) {
 		prDescription += authorSlackmoji;
-		prDescription = prDescription.padEnd(pully_options.max_length_left_hand_side + authorSlackmoji.length - 3 - repoNameFormatted.length, " ");
+		prDescription = prDescription.padEnd(pully_options.max_length_left_hand_side + authorSlackmoji.length - 3 - repoNameFormatted.length, "\u{00A0}");
 	}
 
 	// Now we can construct the entire string...
@@ -180,7 +180,7 @@ export const constructSlackMessage = async (
 		leftHandSideText = `~${leftHandSideText}~`;
 	}
 
-	const slackMessage = `${prStatusSlackmoji} ${leftHandSideText}${reviewStatusText}`;
+	const slackMessage = `${prStatusSlackmoji}\u{00A0}${leftHandSideText}${reviewStatusText}`;
 
 	return slackMessage;
 };
