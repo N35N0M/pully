@@ -1,3 +1,10 @@
+- [Pully](#pully)
+  - [Getting started](#getting-started)
+  - [Core design guidelines](#core-design-guidelines)
+  - [Future ideas](#future-ideas)
+  - [Ideas tested but not working](#ideas-tested-but-not-working)
+
+
 # Pully
 Get an overview of PR statuses in slack in a high-paced environment.
 
@@ -6,8 +13,8 @@ This is a CI job that constantly updates one minimal slack message in a single c
 This is self-contained in the repo, and required no extra running services if you are using Github (and could be easily extended to Gitlab/other Git vendors with a CI platform).
 
 ## Getting started
-1. Create a dedicated slack channel for pully to post to, note down its channel ID..
-2. Generate a slack token with permission to write to this channel, and nothin else.
+1. Create a dedicated slack channel for pully to post to, note down its channel ID. You can find this by opening the slack channel in your browser. The URL should have format `something.slack.com/client/<clientid>/<channelid>`
+2. Generate a slack token with permission to write to this channel, and nothing else preferrably (not read either).
 3. Configure your repo's secrets:
     - `PULLY_SLACK_CHANNEL`: The channel id of the channel you made in step 1.
     - `PULLY_SLACK_TOKEN`: The slack token with permission to post to only `PULLY_SLACK_CHANNEL`, that you made in step 2.
@@ -20,7 +27,7 @@ It's important that any branch protection rules allows GITHUB_TOKEN to write to 
     - The message timestamp of the original slack message per pr (not considered sensitive. You cant do anything with this timestamp without read/write permission to the slack channel, and you need to know the slack channel)
     - Any provided github usernames
     - (Optional): The first name and the slack ID of github authors. **This will only be part of the state if committed to the state in step 5**
-5. Commit the initial `pullystate.json` to the `pully-persistent-state-do-not-use-for-coding`, where you specify optional information about the authors. If you do not wish to share this information, the only effect is that the slack message wont @-mention requested reviewers, and we will use github usernames instead of first names when reporting approvals and change requests. 
+5. (Optional, omitting this will lead to github usernames being posted) Commit the initial `pullystate.json` to the `pully-persistent-state-do-not-use-for-coding`, where you specify optional information about the authors. If you do not wish to share this information, the only effect is that the slack message wont @-mention requested reviewers, and we will use github usernames instead of first names when reporting approvals and change requests. 
 ```
 {
   "known_authors": [
@@ -37,9 +44,10 @@ It's important that any branch protection rules allows GITHUB_TOKEN to write to 
   ]
 }
 ```
-6. Review the contents of `.github/workflows` in this repo, and merge in these files to your default branch in your repo to get going (TODO dedicated github/gitlab actions)
+6. Add the pully github action to the `.github/workflows` folder of your repo's main branch. An example is found in this repos self-test, `pully/.github/workflows/pully.yml`. Replace the self-test commit SHA with a github release tag (or its SHA, to guarantee that the content doesnt change): https://github.com/N35N0M/pully/tags
+7. Create a new PR, pully.yml should run when you create the PR and post to your slack channel.
 
-## Core design guidelines:
+## Core design guidelines
 - One slack message per unique PR
   - If title changes: Edit the original slack message
   - If title is longer than 100 characters: truncate title in slack message
@@ -58,9 +66,6 @@ It's important that any branch protection rules allows GITHUB_TOKEN to write to 
     - Closed/merged: strikethrough, with a reason at the end of line 1.
 
 
-Future fluff:
-- Post a summary every morning of PRs that are still left hanging (With link to the existing slack message to avoid duplicated state?)
-
 Assumptions:
 - You are ok with having an orphaned branch called "pully-persistent-state-do-not-use-for-coding" in your branch managed by pully.
   - This is to avoid needing external infrastructure in order to get this functionality. Less complexity and less risks.
@@ -73,3 +78,9 @@ Assumptions:
   4. :github-merged:
   5. :github-pr:
   6. :code-review:
+
+## Future ideas
+See the github issues board: https://github.com/N35N0M/pully/issues
+
+## Ideas tested but not working
+- Aligning the sections across messages: unsuccessful because slack doesnt use monospacing, causing alignmentissues.
