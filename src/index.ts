@@ -415,9 +415,7 @@ const main = () => {
 		.login;
 	const GITHUB_REPOSITORY = github.context.payload.repository?.name;
 	const GITHUB_TOKEN = core.getInput("GITHUB_TOKEN");
-	const PR_DESCRIPTION_CONTENT_LENGTH = Number(
-		core.getInput("PR_DESCRIPTION_CONTENT_LENGTH") ?? "100",
-	);
+
 	assert(
 		!!GITHUB_TOKEN,
 		"GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch",
@@ -443,7 +441,6 @@ const main = () => {
 	);
 
 	const pullyOptions: PullyOptions = {
-		max_length_left_hand_side: PR_DESCRIPTION_CONTENT_LENGTH,
 		PULLY_SLACK_CHANNEL: PULLY_SLACK_CHANNEL,
 		PULLY_SLACK_TOKEN: PULLY_SLACK_TOKEN,
 		PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: core.getInput("PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE") !== ""

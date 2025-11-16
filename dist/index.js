@@ -62859,7 +62859,6 @@ const main = () => {
         .login;
     const GITHUB_REPOSITORY = githubExports.context.payload.repository?.name;
     const GITHUB_TOKEN = coreExports.getInput("GITHUB_TOKEN");
-    const PR_DESCRIPTION_CONTENT_LENGTH = Number(coreExports.getInput("PR_DESCRIPTION_CONTENT_LENGTH") ?? "100");
     assert(!!GITHUB_TOKEN, "GITHUB_TOKEN was undefined in the environment! This must be set to a token with read and write access to the repo's pully-persistent-state-do-not-use-for-coding branch");
     assert(!!GITHUB_REPOSITORY_OWNER, "GITHUB_REPOSITORY_OWNER, i.e. the owner of the repo this is running for, was unexpectedly undefined in the runtime environment!");
     assert(!!GITHUB_REPOSITORY, "GITHUB_REPOSITORY, i.e. <owner/reponame> from github, was unexpectedly undefined in the runtime environment.");
@@ -62868,7 +62867,6 @@ const main = () => {
     assert(!!PULLY_SLACK_TOKEN, "PULLY_SLACK_TOKEN was not defined in the environment");
     assert(!!PULLY_SLACK_CHANNEL, "PULLY_SLACK_CHANNEL (the slack channel id) was not defined in the environment");
     const pullyOptions = {
-        max_length_left_hand_side: PR_DESCRIPTION_CONTENT_LENGTH,
         PULLY_SLACK_CHANNEL: PULLY_SLACK_CHANNEL,
         PULLY_SLACK_TOKEN: PULLY_SLACK_TOKEN,
         PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: coreExports.getInput("PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE") !== ""
