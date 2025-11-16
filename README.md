@@ -27,19 +27,21 @@ It's important that any branch protection rules allows GITHUB_TOKEN to write to 
     - The message timestamp of the original slack message per pr (not considered sensitive. You cant do anything with this timestamp without read/write permission to the slack channel, and you need to know the slack channel)
     - Any provided github usernames
     - (Optional): The first name and the slack ID of github authors. **This will only be part of the state if committed to the state in step 5**
-5. (Optional, omitting this will lead to github usernames being posted) Commit the initial `pullystate.json` to the `pully-persistent-state-do-not-use-for-coding`, where you specify optional information about the authors. If you do not wish to share this information, the only effect is that the slack message wont @-mention requested reviewers, and we will use github usernames instead of first names when reporting approvals and change requests. 
+5. (Optional, omitting this will lead to github usernames being posted) Commit the initial `.pully/config.json` to your default branch (main), where you specify optional information about the authors. If you do not wish to share this information, the only effect is that the slack message wont @-mention requested reviewers, and we will use github usernames instead of first names when reporting approvals and change requests. 
 ```
 {
   "known_authors": [
     {
       "githubUsername": "kristoffer-monsen-bulder",
       "slackMemberId": "U08FWFQPT60",
-      "firstName": "Kris"
+      "firstName": "Kris",
+      "slackmoji": ":meepmeep:"
     },
     {
       "githubUsername": "N35N0M",
       "slackMemberId": "U08FWFQPT60",
-      "firstName": "Kris"
+      "firstName": "Kris",
+      "slackmoji": ":meepmeep:"
     }
   ]
 }
