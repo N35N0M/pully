@@ -491,7 +491,7 @@ const main = () => {
 					if (value.state === "APPROVED"){
 						reviewType = "approved"
 					}
-					else if (value.state === "REQUESTED_CHANGES"){
+					else if (value.state === "CHANGES_REQUESTED"){
 						reviewType = "requested-changes"
 					}
 
@@ -499,7 +499,7 @@ const main = () => {
 						throw Error("Review submitted at was unexpectedly undefined!")
 					}
 					
-					return {author: getAuthorInfoFromGithubLogin(pullyData.known_authors, value.user!.login), time: new Date(value.submitted_at), state: reviewType}
+					return {author: getAuthorInfoFromGithubLogin(pullyData.known_authors, value.user!.login), time: new Date(value.submitted_at ?? 0), state: reviewType}
 				})
 			},
 		}
