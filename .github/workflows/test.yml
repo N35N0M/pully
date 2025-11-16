@@ -24,6 +24,7 @@ jobs:
         run: npm run build
       - name: Package code with rollup for fast CI execution times
         run: npm run package
+      - name: Check that the prebuilt dist is up-to-date with the src
+        run: git diff --exit-code
 
-      # TODO: ensure that there is no git diff for the built dist
       # TODO: run testing in some framework (vitest?)
