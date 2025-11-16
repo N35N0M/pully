@@ -1,5 +1,9 @@
 {
+  "ts-node": {
+    "esm": true
+  },
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "allowSyntheticDefaultImports": true,
     "declaration": false,
     "declarationMap": false,
@@ -11,6 +15,7 @@
     "moduleResolution": "NodeNext",
     "newLine": "lf",
     "noImplicitAny": true,
+    "noEmit": true,
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "pretty": true,
@@ -20,6 +25,7 @@
     "target": "ES2022",
     "outDir": "./dist"
   },
+  
   "include": [
     "src/index.ts",
   ],
