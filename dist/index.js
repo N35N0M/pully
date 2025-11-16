@@ -62573,15 +62573,11 @@ const constructSlackMessage = async (github_adapter, pully_options, pullyRepodat
         repoDisplayName = repoName;
     }
     // TODO: need to figure out how to keep '>' in the text without breaking the slack post link
-    let prDescription = `${prTitle.replaceAll(">", "")} (#${prNumber}) ${linediff} by ${authorToUse}`;
+    let prDescription = `${prTitle.replaceAll(">", "")} (#${prNumber}) ${linediff} by ${authorToUse} ${author.slackmoji ?? ''}`;
     const generateSlackLink = (url, displayText) => {
         return `<${url}|${displayText}>`;
     };
     let repoNameFormatted = `[${repoDisplayName}]`;
-    let authorSlackmoji = "";
-    if (author.slackmoji) {
-        authorSlackmoji = ` ${author.slackmoji}`;
-    }
     const prReviews = await github_adapter.platform_methods.getPrReviews(pullyRepodataCache, prNumber);
     const reviewRequests = await github_adapter.platform_methods.getReviewsRequestedForPr(pullyRepodataCache, prNumber);
     const reviews = {};
@@ -62617,18 +62613,18 @@ const constructSlackMessage = async (github_adapter, pully_options, pullyRepodat
         const reviewerData = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, reviewer);
         switch (state.state) {
             case "approved":
-                approvers.add(`${reviewerData.firstName ?? reviewerData.githubUsername}${reviewerData.slackmoji
-                    ? ` ${reviewerData.slackmoji}`
+                approvers.add(`${reviewerData.firstName ?? reviewerData.githubUsername} ${reviewerData.slackmoji
+                    ? `${reviewerData.slackmoji}`
                     : ""}`);
                 break;
             case "requested-changes":
-                change_requesters.add(`${reviewerData.firstName ?? reviewerData.githubUsername}${reviewerData.slackmoji
-                    ? ` ${reviewerData.slackmoji}`
+                change_requesters.add(`${reviewerData.firstName ?? reviewerData.githubUsername} ${reviewerData.slackmoji
+                    ? `${reviewerData.slackmoji}`
                     : ""}`);
                 break;
             case "review_requested":
                 // Only give @ mentions when a review is requested to avoid notification spam
-                review_requests.add(`<@${reviewerData.slackMemberId}>`);
+                review_requests.add(reviewerData.slackMemberId ? `<@${reviewerData.slackMemberId}>` : `${reviewerData.githubUsername}`);
         }
     }
     let reviewStatusText = "";
@@ -62648,24 +62644,6 @@ const constructSlackMessage = async (github_adapter, pully_options, pullyRepodat
     }
     // repoDisplayName.length + prDescription.length isnt all the text content here
     // but it is what varies, so it should be good enough
-    let leftHandSideTextLength = repoDisplayName.length + prDescription.length;
-    if (author.slackmoji) {
-        leftHandSideTextLength += 2; // One space and one rendered slackmoji
-    }
-    if (leftHandSideTextLength > pully_options.max_length_left_hand_side) {
-        // -2 for adjusting to ...s
-        // And -2 for ??
-        // Note that if we truncate the string, author slackmoji never fits (since it is last)
-        // So we must compensate and truncate the whole thing
-        const desiredLength = pully_options.max_length_left_hand_side - repoNameFormatted.length - 2 - 2;
-        assert(desiredLength >= 0); // Just in case
-        prDescription = prDescription.slice(0, desiredLength);
-        prDescription += "...";
-    }
-    else if (leftHandSideTextLength < pully_options.max_length_left_hand_side) {
-        prDescription += authorSlackmoji;
-        prDescription = prDescription.padEnd(pully_options.max_length_left_hand_side + authorSlackmoji.length - 3 - repoNameFormatted.length, " ");
-    }
     // Now we can construct the entire string...
     let leftHandSideText = `${generateSlackLink(prUrl, repoNameFormatted)} ${prDescription}`;
     // Strikethrough
