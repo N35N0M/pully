@@ -1,0 +1,36 @@
+name: Node.js CI
+
+# Trigger the workflow on push to the main branch and on pull requests
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    # Specify the runner environment
+    runs-on: ubuntu-latest
+
+
+    steps:
+      # Step 1: Check out the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Node.js
+      # Use the `actions/setup-node` action to set up the environment for each Node.js version
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          # Cache npm dependencies to speed up subsequent builds
+          cache: 'npm'
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # TODO: tsc compile
+      # TODO: ensure that there is no git diff for the built dist
+      # TODO: run testing in some framework (vitest?)
