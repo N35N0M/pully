@@ -1,0 +1,10 @@
+// For format details, see https://aka.ms/devcontainer.json
+{
+	"name": "Ubuntu",
+	"image": "mcr.microsoft.com/devcontainers/base:noble@sha256:d94c97dd9cacf183d0a6fd12a8e87b526e9e928307674ae9c94139139c0c6eae",
+	"features": {
+		"ghcr.io/devcontainers/features/node:1": {},
+		"ghcr.io/devcontainers-extra/features/apt-get-packages:1": {},
+		"ghcr.io/jajera/features/ag:1": {},
+	}
+}
