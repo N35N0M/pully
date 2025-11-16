@@ -43,33 +43,10 @@ const postToSlack = async (
 	const postingInitialDraftsRequested =
 		core.getInput("POST_INITIAL_DRAFT") !== "";
 
-	// TODO: Determine existing message timestamp by checking state for timestamp file
 	const web = new WebClient(pullyOptions.PULLY_SLACK_TOKEN);
-	const octokit = new Octokit({ auth: githubAdapter.GITHUB_TOKEN });
 
-	let existingMessageTimestamp: string | undefined;
-	const messagePath =
-		`messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
-	try {
-		const pullyStateRaw = await octokit.request(
-			"GET /repos/{owner}/{repo}/contents/{path}",
-			{
-				repo: githubAdapter.GITHUB_REPOSITORY,
-				owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
-				path: messagePath,
-				ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
-			},
-		);
+	let existingMessageTimestamp: string | undefined = await githubAdapter.platform_methods.getExistingMessageTimestamp(prNumber)
 
-		const timestampFile: { timestamp: string } = JSON.parse(
-			// @ts-expect-error need to assert that this is file somehow
-			atob(pullyStateRaw.data.content),
-		);
-		existingMessageTimestamp = timestampFile.timestamp;
-	} catch (e: unknown) {
-		console.log("Error when getting existing timestamp...");
-		console.log(e); // Assuming file not found
-	}
 
 	// Well, initial for Pully anyway.
 	const isInitialDraft = isDraft && existingMessageTimestamp === undefined;
@@ -89,23 +66,7 @@ const postToSlack = async (
 			channel: pullyOptions.PULLY_SLACK_CHANNEL,
 		});
 		if (value.ts) {
-			await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-				owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
-				repo: githubAdapter.GITHUB_REPOSITORY,
-				path: messagePath,
-				branch:
-					"refs/heads/pully-persistent-state-do-not-use-for-coding",
-				message: "Pully state update",
-				committer: {
-					name: "Pully",
-					email: "kris@bitheim.no",
-				},
-				content: btoa(JSON.stringify({ timestamp: value.ts })),
-				// sha: sha, We will never update the file since we have one message per pr...
-				headers: {
-					"X-GitHub-Api-Version": "2022-11-28",
-				},
-			});
+			await githubAdapter.platform_methods.updateSlackMessageTimestampForPr(prNumber, value.ts)
 		}
 	}
 };
@@ -365,6 +326,16 @@ export interface PlatformMethods {
 	 * they shall not be listed here
 	 */
 	getReviewsRequestedForPr: (pullyRepoCache: PullyData, prNumber: number) => Promise<AuthorInfo[]>
+
+	/**
+	 * Gets the existing slack message timestamp for a given PR. This is slack's mechanism for updating existing messages.
+	 * 
+	 * If undefined, we havent posted to slack about this PR yet.
+	 * If defined, we have posted to slack regarding this PR and this is the message timestamp related to it.
+	 */
+	getExistingMessageTimestamp: (prNumber: number) => Promise<string | undefined>
+
+	updateSlackMessageTimestampForPr: (prNumber: number, timestamp: string) => Promise<undefined>;
 }
 
 const savePullyState = async (
@@ -454,22 +425,22 @@ const main = () => {
 			getReviewsRequestedForPr: async (pullyData, prNumber) => {
 				const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
-	const reviewRequests = await octokit.request(
+				const reviewRequests = await octokit.request(
 
-		"GET /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers",
-		{
-			owner: GITHUB_REPOSITORY_OWNER,
-			repo: GITHUB_REPOSITORY,
-			pull_number: prNumber,
-			headers: {
-				"X-GitHub-Api-Version": "2022-11-28",
-			},
-		},
-	);
+					"GET /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers",
+					{
+						owner: GITHUB_REPOSITORY_OWNER,
+						repo: GITHUB_REPOSITORY,
+						pull_number: prNumber,
+						headers: {
+							"X-GitHub-Api-Version": "2022-11-28",
+						},
+					},
+				);
 
-			return reviewRequests.data.users.map((value) => {
-				return getAuthorInfoFromGithubLogin(pullyData.known_authors, value.login)
-			})
+				return reviewRequests.data.users.map((value) => {
+					return getAuthorInfoFromGithubLogin(pullyData.known_authors, value.login)
+				})
 			},
 			getPrReviews: async (pullyData, prNumber) => {
 				const octokit = new Octokit({ auth: GITHUB_TOKEN });
@@ -488,22 +459,76 @@ const main = () => {
 				return prReviews.data.map((value) => {
 					let reviewType: ReviewerState = "dismissed";
 
-					if (value.state === "APPROVED"){
+					if (value.state === "APPROVED") {
 						reviewType = "approved"
 					}
-					else if (value.state === "CHANGES_REQUESTED"){
+					else if (value.state === "CHANGES_REQUESTED") {
 						reviewType = "requested-changes"
 					}
 
-					if (value.submitted_at === undefined){
+					if (value.submitted_at === undefined) {
 						throw Error("Review submitted at was unexpectedly undefined!")
 					}
-					
-					return {author: getAuthorInfoFromGithubLogin(pullyData.known_authors, value.user!.login), time: new Date(value.submitted_at ?? 0), state: reviewType}
+
+					return { author: getAuthorInfoFromGithubLogin(pullyData.known_authors, value.user!.login), time: new Date(value.submitted_at ?? 0), state: reviewType }
 				})
 			},
-		}
+			getExistingMessageTimestamp: async (prNumber) => {
+				let existingMessageTimestamp: string | undefined = undefined;
+				const octokit = new Octokit({ auth: GITHUB_TOKEN });
+
+				const messagePath =
+					`messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
+				try {
+					const pullyStateRaw = await octokit.request(
+						"GET /repos/{owner}/{repo}/contents/{path}",
+						{
+							repo: githubAdapter.GITHUB_REPOSITORY,
+							owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
+							path: messagePath,
+							ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+						},
+					);
+
+					const timestampFile: { timestamp: string } = JSON.parse(
+						// @ts-expect-error need to assert that this is file somehow
+						atob(pullyStateRaw.data.content),
+					);
+					existingMessageTimestamp = timestampFile.timestamp;
+				} catch (e: unknown) {
+					console.log("Error when getting existing timestamp...");
+					console.log(e); // Assuming file not found
+				}
+				return existingMessageTimestamp
+			},
+			updateSlackMessageTimestampForPr: async (prNumber, timestamp) => {
+				const octokit = new Octokit({ auth: GITHUB_TOKEN });
+
+				// Todo consolidate message path in the github interface
+				const messagePath =
+					`messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
+				octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
+					owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
+					repo: githubAdapter.GITHUB_REPOSITORY,
+					path: messagePath,
+					branch:
+						"refs/heads/pully-persistent-state-do-not-use-for-coding",
+					message: "Pully state update",
+					committer: {
+						name: "Pully",
+						email: "kris@bitheim.no",
+					},
+					content: btoa(JSON.stringify({ timestamp: timestamp })),
+					// sha: sha, We will never update the file since we have one message per pr...
+					headers: {
+						"X-GitHub-Api-Version": "2022-11-28",
+					},
+				});
+			}
+
+		},
 	}
+
 
 	loadPullyState(githubAdapter).then((repoData) => {
 		const getEventData = ():
