@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "jest",
+    "build": "tsc",
     "package": "rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
     "package:watch": "npm run package -- --watch"
   },
