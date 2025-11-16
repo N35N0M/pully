@@ -62683,9 +62683,9 @@ const postToSlack = async (slackMessageContent, prNumber, isDraft, githubAdapter
         }
     }
 };
-const handlePullRequestReviewSubmitted = async (pullyRepodataCache, payload, github_adapter, pully_options) => {
+const handlePullRequestReviewSubmitted = async (pullyUserConfig, payload, github_adapter, pully_options) => {
     console.log("Received a pull request review submitted event");
-    const prAuthor = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, payload.pull_request.user?.login ?? "undefined");
+    const prAuthor = getAuthorInfoFromGithubLogin(pullyUserConfig.known_authors, payload.pull_request.user?.login ?? "undefined");
     const prData = payload.pull_request;
     let prStatus = prData.state;
     // Handle special states
@@ -62698,15 +62698,15 @@ const handlePullRequestReviewSubmitted = async (pullyRepodataCache, payload, git
     else if (prData.draft) {
         prStatus = "draft";
     }
-    const slackMessage = await constructSlackMessage(github_adapter, pully_options, pullyRepodataCache, prAuthor, prData.title, prData.number, prStatus, payload.repository.owner.login, payload.repository.name, prData.html_url, undefined, undefined);
+    const slackMessage = await constructSlackMessage(github_adapter, pully_options, pullyUserConfig, prAuthor, prData.title, prData.number, prStatus, payload.repository.owner.login, payload.repository.name, prData.html_url, undefined, undefined);
     await postToSlack(slackMessage, prData.number, prStatus === "draft", github_adapter, pully_options);
 };
-const handlePullRequestReviewRequested = async (pullyRepodataCache, payload, github_adapter, pully_options) => {
-    handlePullRequestGeneric(pullyRepodataCache, payload, github_adapter, pully_options);
+const handlePullRequestReviewRequested = async (pullyUserConfig, payload, github_adapter, pully_options) => {
+    handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
-const handlePullRequestGeneric = async (pullyRepodataCache, payload, github_adapter, pully_options) => {
+const handlePullRequestGeneric = async (pullyUserConfig, payload, github_adapter, pully_options) => {
     const prData = payload.pull_request;
-    const author = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, prData.user.login);
+    const author = getAuthorInfoFromGithubLogin(pullyUserConfig.known_authors, prData.user.login);
     let prStatus = prData.state;
     // Handle special states
     if (!prData.merged && prStatus == "closed") {
@@ -62718,52 +62718,32 @@ const handlePullRequestGeneric = async (pullyRepodataCache, payload, github_adap
     else if (prData.draft) {
         prStatus = "draft";
     }
-    const slackMessage = await constructSlackMessage(github_adapter, pully_options, pullyRepodataCache, author, prData.title, prData.number, prStatus, payload.repository.owner.login, payload.repository.name, prData.html_url, prData.additions, prData.deletions);
+    const slackMessage = await constructSlackMessage(github_adapter, pully_options, pullyUserConfig, author, prData.title, prData.number, prStatus, payload.repository.owner.login, payload.repository.name, prData.html_url, prData.additions, prData.deletions);
     await postToSlack(slackMessage, prData.number, prStatus === "draft", github_adapter, pully_options);
 };
-const handlePullRequestOpened = async (pullyRepodataCache, payload, github_adapter, pully_options) => {
+const handlePullRequestOpened = async (pullyUserConfig, payload, github_adapter, pully_options) => {
     console.log(`Received a pull request open event for #${payload.pull_request.url}`);
-    await handlePullRequestGeneric(pullyRepodataCache, payload, github_adapter, pully_options);
+    await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
-const handlePullRequestReopened = async (pullyRepodataCache, payload, github_adapter, pully_options) => {
+const handlePullRequestReopened = async (pullyUserConfig, payload, github_adapter, pully_options) => {
     console.log(`Received a pull request reopened event for #${payload.pull_request.url}`);
-    await handlePullRequestGeneric(pullyRepodataCache, payload, github_adapter, pully_options);
+    await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
-const handlePullRequestEdited = async (pullyRepodataCache, payload, github_adapter, pully_options) => {
+const handlePullRequestEdited = async (pullyUserConfig, payload, github_adapter, pully_options) => {
     console.log(`Received a pull request edited event for #${payload.pull_request.url}`);
-    await handlePullRequestGeneric(pullyRepodataCache, payload, github_adapter, pully_options);
+    await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
-const handlePullRequestConvertedToDraft = async (pullyRepodataCache, payload, github_adapter, pully_options) => {
+const handlePullRequestConvertedToDraft = async (pullyUserConfig, payload, github_adapter, pully_options) => {
     console.log(`Received a pull request converted to draft event for #${payload.pull_request.url}`);
-    await handlePullRequestGeneric(pullyRepodataCache, payload, github_adapter, pully_options);
+    await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
-const handlePullRequestReadyForReview = async (pullyRepodataCache, payload, github_adapter, pully_options) => {
+const handlePullRequestReadyForReview = async (pullyUserConfig, payload, github_adapter, pully_options) => {
     console.log(`Received a pull request ready for review event for #${payload.pull_request.url}`);
-    await handlePullRequestGeneric(pullyRepodataCache, payload, github_adapter, pully_options);
+    await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
-const handlePullRequestClosed = async (pullyRepodataCache, payload, github_adapter, pully_options) => {
+const handlePullRequestClosed = async (pullyUserConfig, payload, github_adapter, pully_options) => {
     console.log(`Received a pull request closed event for ${payload.pull_request.url}`);
-    await handlePullRequestGeneric(pullyRepodataCache, payload, github_adapter, pully_options);
-};
-const loadPullyState = async (github_adapter) => {
-    // TODO: We should create the orphan branch if it doesnt exist already
-    let repoData;
-    const octokit = new Octokit$1({ auth: github_adapter.GITHUB_TOKEN });
-    try {
-        // TODO: Should sanitize json data with a schema
-        const pullyStateRaw = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
-            repo: github_adapter.GITHUB_REPOSITORY,
-            owner: github_adapter.GITHUB_REPOSITORY_OWNER,
-            path: "pullystate.json",
-            ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
-        });
-        // @ts-expect-error need to assert that this is file somehow
-        repoData = JSON.parse(atob(pullyStateRaw.data.content));
-        return repoData;
-    }
-    catch (e) {
-        throw e;
-    }
+    await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
 const savePullyState = async (pullyState, github_adapter) => {
     const octokit = new Octokit$1({ auth: github_adapter.GITHUB_TOKEN });
@@ -62900,10 +62880,29 @@ const main = () => {
                         "X-GitHub-Api-Version": "2022-11-28",
                     },
                 });
+            },
+            loadPullyUserConfig: async () => {
+                let repoData;
+                const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
+                try {
+                    // TODO: Should sanitize json data with a schema
+                    const pullyStateRaw = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
+                        repo: GITHUB_REPOSITORY,
+                        owner: GITHUB_REPOSITORY_OWNER,
+                        path: "pullystate.json",
+                        ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+                    });
+                    // @ts-expect-error need to assert that this is file somehow
+                    repoData = JSON.parse(atob(pullyStateRaw.data.content));
+                    return repoData;
+                }
+                catch (e) {
+                    throw e;
+                }
             }
         },
     };
-    loadPullyState(githubAdapter).then((repoData) => {
+    githubAdapter.platform_methods.loadPullyUserConfig().then((repoData) => {
         const getEventData = () => {
             let eventData;
             // @ts-ignore TODO can we type narrow this to the correct type...?

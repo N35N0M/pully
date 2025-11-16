@@ -72,7 +72,7 @@ const postToSlack = async (
 };
 
 const handlePullRequestReviewSubmitted = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestReviewSubmittedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -80,7 +80,7 @@ const handlePullRequestReviewSubmitted = async (
 	console.log("Received a pull request review submitted event");
 
 	const prAuthor = getAuthorInfoFromGithubLogin(
-		pullyRepodataCache.known_authors,
+		pullyUserConfig.known_authors,
 		payload.pull_request.user?.login ?? "undefined",
 	);
 
@@ -98,7 +98,7 @@ const handlePullRequestReviewSubmitted = async (
 	const slackMessage = await constructSlackMessage(
 		github_adapter,
 		pully_options,
-		pullyRepodataCache,
+		pullyUserConfig,
 		prAuthor,
 		prData.title,
 		prData.number,
@@ -120,13 +120,13 @@ const handlePullRequestReviewSubmitted = async (
 };
 
 const handlePullRequestReviewRequested = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestReviewRequestedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
 ) => {
 	handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -134,7 +134,7 @@ const handlePullRequestReviewRequested = async (
 };
 
 const handlePullRequestGeneric = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -142,7 +142,7 @@ const handlePullRequestGeneric = async (
 	const prData = payload.pull_request;
 
 	const author = getAuthorInfoFromGithubLogin(
-		pullyRepodataCache.known_authors,
+		pullyUserConfig.known_authors,
 		prData.user.login,
 	);
 
@@ -160,7 +160,7 @@ const handlePullRequestGeneric = async (
 	const slackMessage = await constructSlackMessage(
 		github_adapter,
 		pully_options,
-		pullyRepodataCache,
+		pullyUserConfig,
 		author,
 		prData.title,
 		prData.number,
@@ -181,7 +181,7 @@ const handlePullRequestGeneric = async (
 };
 
 const handlePullRequestOpened = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestOpenedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -190,7 +190,7 @@ const handlePullRequestOpened = async (
 		`Received a pull request open event for #${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -198,7 +198,7 @@ const handlePullRequestOpened = async (
 };
 
 const handlePullRequestReopened = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestReopenedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -207,7 +207,7 @@ const handlePullRequestReopened = async (
 		`Received a pull request reopened event for #${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -215,7 +215,7 @@ const handlePullRequestReopened = async (
 };
 
 const handlePullRequestEdited = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestEditedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -224,7 +224,7 @@ const handlePullRequestEdited = async (
 		`Received a pull request edited event for #${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -232,7 +232,7 @@ const handlePullRequestEdited = async (
 };
 
 const handlePullRequestConvertedToDraft = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestConvertedToDraftEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -241,7 +241,7 @@ const handlePullRequestConvertedToDraft = async (
 		`Received a pull request converted to draft event for #${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -249,7 +249,7 @@ const handlePullRequestConvertedToDraft = async (
 };
 
 const handlePullRequestReadyForReview = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestReadyForReviewEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -258,7 +258,7 @@ const handlePullRequestReadyForReview = async (
 		`Received a pull request ready for review event for #${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -266,7 +266,7 @@ const handlePullRequestReadyForReview = async (
 };
 
 const handlePullRequestClosed = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestClosedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -275,37 +275,13 @@ const handlePullRequestClosed = async (
 		`Received a pull request closed event for ${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
 	);
 };
 
-const loadPullyState = async (
-	github_adapter: GithubAdapter,
-): Promise<PullyData> => {
-	// TODO: We should create the orphan branch if it doesnt exist already
-	let repoData: PullyData;
-	const octokit = new Octokit({ auth: github_adapter.GITHUB_TOKEN });
-	try {
-		// TODO: Should sanitize json data with a schema
-		const pullyStateRaw = await octokit.request(
-			"GET /repos/{owner}/{repo}/contents/{path}",
-			{
-				repo: github_adapter.GITHUB_REPOSITORY,
-				owner: github_adapter.GITHUB_REPOSITORY_OWNER,
-				path: "pullystate.json",
-				ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
-			},
-		);
-		// @ts-expect-error need to assert that this is file somehow
-		repoData = JSON.parse(atob(pullyStateRaw.data.content));
-		return repoData;
-	} catch (e) {
-		throw e;
-	}
-};
 
 export interface PlatformMethods {
 	/**
@@ -336,6 +312,8 @@ export interface PlatformMethods {
 	getExistingMessageTimestamp: (prNumber: number) => Promise<string | undefined>
 
 	updateSlackMessageTimestampForPr: (prNumber: number, timestamp: string) => Promise<undefined>;
+
+	loadPullyUserConfig: () => Promise<PullyData>;
 }
 
 const savePullyState = async (
@@ -524,13 +502,35 @@ const main = () => {
 						"X-GitHub-Api-Version": "2022-11-28",
 					},
 				});
+			},
+			loadPullyUserConfig: async () => {
+					let repoData: PullyData;
+					const octokit = new Octokit({ auth: GITHUB_TOKEN });
+					try {
+						// TODO: Should sanitize json data with a schema
+						const pullyStateRaw = await octokit.request(
+							"GET /repos/{owner}/{repo}/contents/{path}",
+							{
+								repo: GITHUB_REPOSITORY,
+								owner: GITHUB_REPOSITORY_OWNER,
+								path: "pullystate.json",
+								ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+							},
+						);
+						// @ts-expect-error need to assert that this is file somehow
+						repoData = JSON.parse(atob(pullyStateRaw.data.content));
+						return repoData;
+					} catch (e) {
+						throw e;
+					}
+			
 			}
 
 		},
 	}
 
 
-	loadPullyState(githubAdapter).then((repoData) => {
+	githubAdapter.platform_methods.loadPullyUserConfig().then((repoData) => {
 		const getEventData = ():
 			| PullRequestReviewSubmittedEvent
 			| PullRequestOpenedEvent
