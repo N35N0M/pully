@@ -43,33 +43,10 @@ const postToSlack = async (
 	const postingInitialDraftsRequested =
 		core.getInput("POST_INITIAL_DRAFT") !== "";
 
-	// TODO: Determine existing message timestamp by checking state for timestamp file
 	const web = new WebClient(pullyOptions.PULLY_SLACK_TOKEN);
-	const octokit = new Octokit({ auth: githubAdapter.GITHUB_TOKEN });
 
-	let existingMessageTimestamp: string | undefined;
-	const messagePath =
-		`messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
-	try {
-		const pullyStateRaw = await octokit.request(
-			"GET /repos/{owner}/{repo}/contents/{path}",
-			{
-				repo: githubAdapter.GITHUB_REPOSITORY,
-				owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
-				path: messagePath,
-				ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
-			},
-		);
+	let existingMessageTimestamp: string | undefined = await githubAdapter.platform_methods.getExistingMessageTimestamp(prNumber)
 
-		const timestampFile: { timestamp: string } = JSON.parse(
-			// @ts-expect-error need to assert that this is file somehow
-			atob(pullyStateRaw.data.content),
-		);
-		existingMessageTimestamp = timestampFile.timestamp;
-	} catch (e: unknown) {
-		console.log("Error when getting existing timestamp...");
-		console.log(e); // Assuming file not found
-	}
 
 	// Well, initial for Pully anyway.
 	const isInitialDraft = isDraft && existingMessageTimestamp === undefined;
@@ -89,29 +66,13 @@ const postToSlack = async (
 			channel: pullyOptions.PULLY_SLACK_CHANNEL,
 		});
 		if (value.ts) {
-			await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-				owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
-				repo: githubAdapter.GITHUB_REPOSITORY,
-				path: messagePath,
-				branch:
-					"refs/heads/pully-persistent-state-do-not-use-for-coding",
-				message: "Pully state update",
-				committer: {
-					name: "Pully",
-					email: "kris@bitheim.no",
-				},
-				content: btoa(JSON.stringify({ timestamp: value.ts })),
-				// sha: sha, We will never update the file since we have one message per pr...
-				headers: {
-					"X-GitHub-Api-Version": "2022-11-28",
-				},
-			});
+			await githubAdapter.platform_methods.updateSlackMessageTimestampForPr(prNumber, value.ts)
 		}
 	}
 };
 
 const handlePullRequestReviewSubmitted = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestReviewSubmittedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -119,7 +80,7 @@ const handlePullRequestReviewSubmitted = async (
 	console.log("Received a pull request review submitted event");
 
 	const prAuthor = getAuthorInfoFromGithubLogin(
-		pullyRepodataCache.known_authors,
+		pullyUserConfig.known_authors,
 		payload.pull_request.user?.login ?? "undefined",
 	);
 
@@ -137,7 +98,7 @@ const handlePullRequestReviewSubmitted = async (
 	const slackMessage = await constructSlackMessage(
 		github_adapter,
 		pully_options,
-		pullyRepodataCache,
+		pullyUserConfig,
 		prAuthor,
 		prData.title,
 		prData.number,
@@ -159,13 +120,13 @@ const handlePullRequestReviewSubmitted = async (
 };
 
 const handlePullRequestReviewRequested = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestReviewRequestedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
 ) => {
 	handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -173,7 +134,7 @@ const handlePullRequestReviewRequested = async (
 };
 
 const handlePullRequestGeneric = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -181,7 +142,7 @@ const handlePullRequestGeneric = async (
 	const prData = payload.pull_request;
 
 	const author = getAuthorInfoFromGithubLogin(
-		pullyRepodataCache.known_authors,
+		pullyUserConfig.known_authors,
 		prData.user.login,
 	);
 
@@ -199,7 +160,7 @@ const handlePullRequestGeneric = async (
 	const slackMessage = await constructSlackMessage(
 		github_adapter,
 		pully_options,
-		pullyRepodataCache,
+		pullyUserConfig,
 		author,
 		prData.title,
 		prData.number,
@@ -220,7 +181,7 @@ const handlePullRequestGeneric = async (
 };
 
 const handlePullRequestOpened = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestOpenedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -229,7 +190,7 @@ const handlePullRequestOpened = async (
 		`Received a pull request open event for #${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -237,7 +198,7 @@ const handlePullRequestOpened = async (
 };
 
 const handlePullRequestReopened = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestReopenedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -246,7 +207,7 @@ const handlePullRequestReopened = async (
 		`Received a pull request reopened event for #${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -254,7 +215,7 @@ const handlePullRequestReopened = async (
 };
 
 const handlePullRequestEdited = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestEditedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -263,7 +224,7 @@ const handlePullRequestEdited = async (
 		`Received a pull request edited event for #${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -271,7 +232,7 @@ const handlePullRequestEdited = async (
 };
 
 const handlePullRequestConvertedToDraft = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestConvertedToDraftEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -280,7 +241,7 @@ const handlePullRequestConvertedToDraft = async (
 		`Received a pull request converted to draft event for #${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -288,7 +249,7 @@ const handlePullRequestConvertedToDraft = async (
 };
 
 const handlePullRequestReadyForReview = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestReadyForReviewEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -297,7 +258,7 @@ const handlePullRequestReadyForReview = async (
 		`Received a pull request ready for review event for #${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
@@ -305,7 +266,7 @@ const handlePullRequestReadyForReview = async (
 };
 
 const handlePullRequestClosed = async (
-	pullyRepodataCache: PullyData,
+	pullyUserConfig: PullyData,
 	payload: PullRequestClosedEvent,
 	github_adapter: GithubAdapter,
 	pully_options: PullyOptions,
@@ -314,37 +275,13 @@ const handlePullRequestClosed = async (
 		`Received a pull request closed event for ${payload.pull_request.url}`,
 	);
 	await handlePullRequestGeneric(
-		pullyRepodataCache,
+		pullyUserConfig,
 		payload,
 		github_adapter,
 		pully_options,
 	);
 };
 
-const loadPullyState = async (
-	github_adapter: GithubAdapter,
-): Promise<PullyData> => {
-	// TODO: We should create the orphan branch if it doesnt exist already
-	let repoData: PullyData;
-	const octokit = new Octokit({ auth: github_adapter.GITHUB_TOKEN });
-	try {
-		// TODO: Should sanitize json data with a schema
-		const pullyStateRaw = await octokit.request(
-			"GET /repos/{owner}/{repo}/contents/{path}",
-			{
-				repo: github_adapter.GITHUB_REPOSITORY,
-				owner: github_adapter.GITHUB_REPOSITORY_OWNER,
-				path: "pullystate.json",
-				ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
-			},
-		);
-		// @ts-expect-error need to assert that this is file somehow
-		repoData = JSON.parse(atob(pullyStateRaw.data.content));
-		return repoData;
-	} catch (e) {
-		throw e;
-	}
-};
 
 export interface PlatformMethods {
 	/**
@@ -365,6 +302,18 @@ export interface PlatformMethods {
 	 * they shall not be listed here
 	 */
 	getReviewsRequestedForPr: (pullyRepoCache: PullyData, prNumber: number) => Promise<AuthorInfo[]>
+
+	/**
+	 * Gets the existing slack message timestamp for a given PR. This is slack's mechanism for updating existing messages.
+	 * 
+	 * If undefined, we havent posted to slack about this PR yet.
+	 * If defined, we have posted to slack regarding this PR and this is the message timestamp related to it.
+	 */
+	getExistingMessageTimestamp: (prNumber: number) => Promise<string | undefined>
+
+	updateSlackMessageTimestampForPr: (prNumber: number, timestamp: string) => Promise<undefined>;
+
+	loadPullyUserConfig: () => Promise<PullyData>;
 }
 
 const savePullyState = async (
@@ -454,22 +403,22 @@ const main = () => {
 			getReviewsRequestedForPr: async (pullyData, prNumber) => {
 				const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
-	const reviewRequests = await octokit.request(
+				const reviewRequests = await octokit.request(
 
-		"GET /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers",
-		{
-			owner: GITHUB_REPOSITORY_OWNER,
-			repo: GITHUB_REPOSITORY,
-			pull_number: prNumber,
-			headers: {
-				"X-GitHub-Api-Version": "2022-11-28",
-			},
-		},
-	);
+					"GET /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers",
+					{
+						owner: GITHUB_REPOSITORY_OWNER,
+						repo: GITHUB_REPOSITORY,
+						pull_number: prNumber,
+						headers: {
+							"X-GitHub-Api-Version": "2022-11-28",
+						},
+					},
+				);
 
-			return reviewRequests.data.users.map((value) => {
-				return getAuthorInfoFromGithubLogin(pullyData.known_authors, value.login)
-			})
+				return reviewRequests.data.users.map((value) => {
+					return getAuthorInfoFromGithubLogin(pullyData.known_authors, value.login)
+				})
 			},
 			getPrReviews: async (pullyData, prNumber) => {
 				const octokit = new Octokit({ auth: GITHUB_TOKEN });
@@ -488,24 +437,103 @@ const main = () => {
 				return prReviews.data.map((value) => {
 					let reviewType: ReviewerState = "dismissed";
 
-					if (value.state === "APPROVED"){
+					if (value.state === "APPROVED") {
 						reviewType = "approved"
 					}
-					else if (value.state === "CHANGES_REQUESTED"){
+					else if (value.state === "CHANGES_REQUESTED") {
 						reviewType = "requested-changes"
 					}
 
-					if (value.submitted_at === undefined){
+					if (value.submitted_at === undefined) {
 						throw Error("Review submitted at was unexpectedly undefined!")
 					}
-					
-					return {author: getAuthorInfoFromGithubLogin(pullyData.known_authors, value.user!.login), time: new Date(value.submitted_at ?? 0), state: reviewType}
+
+					return { author: getAuthorInfoFromGithubLogin(pullyData.known_authors, value.user!.login), time: new Date(value.submitted_at ?? 0), state: reviewType }
 				})
 			},
-		}
+			getExistingMessageTimestamp: async (prNumber) => {
+				let existingMessageTimestamp: string | undefined = undefined;
+				const octokit = new Octokit({ auth: GITHUB_TOKEN });
+
+				const messagePath =
+					`messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
+				try {
+					const pullyStateRaw = await octokit.request(
+						"GET /repos/{owner}/{repo}/contents/{path}",
+						{
+							repo: githubAdapter.GITHUB_REPOSITORY,
+							owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
+							path: messagePath,
+							ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+						},
+					);
+
+					const timestampFile: { timestamp: string } = JSON.parse(
+						// @ts-expect-error need to assert that this is file somehow
+						atob(pullyStateRaw.data.content),
+					);
+					existingMessageTimestamp = timestampFile.timestamp;
+				} catch (e: unknown) {
+					console.log("Error when getting existing timestamp...");
+					console.log(e); // Assuming file not found
+				}
+				return existingMessageTimestamp
+			},
+			updateSlackMessageTimestampForPr: async (prNumber, timestamp) => {
+				const octokit = new Octokit({ auth: GITHUB_TOKEN });
+
+				// Todo consolidate message path in the github interface
+				const messagePath =
+					`messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
+				octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
+					owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
+					repo: githubAdapter.GITHUB_REPOSITORY,
+					path: messagePath,
+					branch:
+						"refs/heads/pully-persistent-state-do-not-use-for-coding",
+					message: "Pully state update",
+					committer: {
+						name: "Pully",
+						email: "kris@bitheim.no",
+					},
+					content: btoa(JSON.stringify({ timestamp: timestamp })),
+					// sha: sha, We will never update the file since we have one message per pr...
+					headers: {
+						"X-GitHub-Api-Version": "2022-11-28",
+					},
+				});
+			},
+			loadPullyUserConfig: async () => {
+					let repoData: PullyData;
+					const octokit = new Octokit({ auth: GITHUB_TOKEN });
+					try {
+						// TODO: Should sanitize json data with a schema
+						const pullyStateRaw = await octokit.request(
+							"GET /repos/{owner}/{repo}/contents/{path}",
+							{
+								repo: GITHUB_REPOSITORY,
+								owner: GITHUB_REPOSITORY_OWNER,
+								path: ".pully/userconfig.json",
+								// By omitting the ref, the call should default to the default branch.
+							},
+						);
+						// @ts-expect-error need to assert that this is file somehow
+						repoData = JSON.parse(atob(pullyStateRaw.data.content));
+						return repoData;
+					} catch (e) {
+						console.log(e)
+						return {
+							known_authors: []
+						}
+					}
+			
+			}
+
+		},
 	}
 
-	loadPullyState(githubAdapter).then((repoData) => {
+
+	githubAdapter.platform_methods.loadPullyUserConfig().then((repoData) => {
 		const getEventData = ():
 			| PullRequestReviewSubmittedEvent
 			| PullRequestOpenedEvent
