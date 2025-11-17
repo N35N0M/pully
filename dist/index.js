@@ -62889,15 +62889,18 @@ const main = () => {
                     const pullyStateRaw = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
                         repo: GITHUB_REPOSITORY,
                         owner: GITHUB_REPOSITORY_OWNER,
-                        path: "pullystate.json",
-                        ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+                        path: ".pully/userconfig.json",
+                        // By omitting the ref, the call should default to the default branch.
                     });
                     // @ts-expect-error need to assert that this is file somehow
                     repoData = JSON.parse(atob(pullyStateRaw.data.content));
                     return repoData;
                 }
                 catch (e) {
-                    throw e;
+                    console.log(e);
+                    return {
+                        known_authors: []
+                    };
                 }
             }
         },
