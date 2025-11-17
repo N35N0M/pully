@@ -1,7 +1,7 @@
 {
   "name": "pully",
-  "version": "1.2.1",
-  "description": "A github app that reports PR statuses to a slack channel in a condensed manner.",
+  "version": "2.0.0",
+  "description": "A CI job that reports one-per-PR status messages to a slack channel, oneliner, constantly updated.",
   "type": "module",
   "exports": {
     ".": "./dist/index.js"
