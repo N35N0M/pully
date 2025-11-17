@@ -62841,13 +62841,14 @@ const main = () => {
             getExistingMessageTimestamp: async (prNumber) => {
                 let existingMessageTimestamp = undefined;
                 const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
+                const pullybranch = '.pullystate';
                 const messagePath = `messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
                 try {
                     const pullyStateRaw = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
                         repo: githubAdapter.GITHUB_REPOSITORY,
                         owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
                         path: messagePath,
-                        ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+                        ref: `refs/heads/${pullybranch}`,
                     });
                     const timestampFile = JSON.parse(
                     // @ts-expect-error need to assert that this is file somehow
@@ -62862,13 +62863,49 @@ const main = () => {
             },
             updateSlackMessageTimestampForPr: async (prNumber, timestamp) => {
                 const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
+                const pullybranch = '.pullystate';
+                // Check that orphan branch .pullystate exists first....
+                try {
+                    octokit.request('GET /repos/{owner}/{repo}/commits/{branch}', {
+                        owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
+                        repo: githubAdapter.GITHUB_REPOSITORY,
+                        branch: pullybranch
+                    });
+                    // Branch surely exists
+                }
+                catch (e) {
+                    // @ts-ignore Ew but quickfix
+                    if (e.status == 404) {
+                        console.log("Determined that .pullystate branch doesnt exist. Will try to create  it now...");
+                        // Solution from https://github.com/orgs/community/discussions/24699#discussioncomment-3245102
+                        const SHA1_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+                        const res = await octokit.request("POST /repos/{owner}/{repo}/git/commits", {
+                            owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
+                            repo: githubAdapter.GITHUB_REPOSITORY,
+                            message: "Pully orphan branch initial commit",
+                            tree: SHA1_EMPTY_TREE,
+                            parents: [],
+                        });
+                        await octokit.request("POST /repos/{owner}/{repo}/git/refs", {
+                            owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
+                            repo: githubAdapter.GITHUB_REPOSITORY,
+                            // If it doesn't start with 'refs' and have at least two slashes, it will be rejected.
+                            ref: `refs/heads/${pullybranch}`,
+                            sha: res.data.sha,
+                        });
+                    }
+                    else {
+                        console.log("Got error when checking existance of .pullystate but not sure what went wrong...");
+                        console.log(e);
+                    }
+                }
                 // Todo consolidate message path in the github interface
                 const messagePath = `messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
                 octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
                     owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
                     repo: githubAdapter.GITHUB_REPOSITORY,
                     path: messagePath,
-                    branch: "refs/heads/pully-persistent-state-do-not-use-for-coding",
+                    branch: pullybranch,
                     message: "Pully state update",
                     committer: {
                         name: "Pully",

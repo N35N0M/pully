@@ -12,22 +12,15 @@ This is a CI job that constantly updates one minimal slack message in a single c
 
 This is self-contained in the repo, and required no extra running services if you are using Github (and could be easily extended to Gitlab/other Git vendors with a CI platform).
 
+NOTE READ THIS: that pully will store some information in a dedicated orphan branch, called `.pullystate`. This could potentially become flattened and forcepushed in the future, and is not meant as a complete record. This is to avoid needing to have readpermissions for slack channels (TODO: verify that write/update permission does not imply read rights).
+
 ## Getting started
 1. Create a dedicated slack channel for pully to post to, note down its channel ID. You can find this by opening the slack channel in your browser. The URL should have format `something.slack.com/client/<clientid>/<channelid>`
 2. Generate a slack token with permission to write to this channel, and nothing else preferrably (not read either).
 3. Configure your repo's secrets:
     - `PULLY_SLACK_CHANNEL`: The channel id of the channel you made in step 1.
     - `PULLY_SLACK_TOKEN`: The slack token with permission to post to only `PULLY_SLACK_CHANNEL`, that you made in step 2.
-4. Create an orphan branch called `pully-persistent-state-do-not-use-for-coding` by running `git checkout --orphan pully-persistent-state-do-not-use-for-coding`, this is where pully will stash its state. 
-\
-\
-It's important that any branch protection rules allows GITHUB_TOKEN to write to this branch. **Note that the state is readable for everyone if this is a public repo.** The info present in the state is:
-    - Name of the github repository (if you can reach the repo, you know this already)
-    - Pull request numbers in the repository (if you can reach the repo, you know this already)
-    - The message timestamp of the original slack message per pr (not considered sensitive. You cant do anything with this timestamp without read/write permission to the slack channel, and you need to know the slack channel)
-    - Any provided github usernames
-    - (Optional): The first name and the slack ID of github authors. **This will only be part of the state if committed to the state in step 5**
-5. (Optional, omitting this will lead to github usernames being posted) Commit the initial `.pully/userconfig.json` to your project's default branch (typically main), where you specify optional information about the authors. If you do not wish to share this information, the only effect is that the slack message wont @-mention requested reviewers, and we will use github usernames instead of first names when reporting approvals and change requests. 
+4. (Optional, omitting this will lead to github usernames being posted) Commit the initial `.pully/userconfig.json` to your project's default branch (typically main), where you specify optional information about the authors. If you do not wish to share this information, the only effect is that the slack message wont @-mention requested reviewers, and we will use github usernames instead of first names when reporting approvals and change requests. 
 ```
 {
   "known_authors": [
@@ -70,7 +63,6 @@ It's important that any branch protection rules allows GITHUB_TOKEN to write to 
 
 Assumptions:
 - You are ok with having an orphaned branch called "pully-persistent-state-do-not-use-for-coding" in your branch managed by pully.
-  - This is to avoid needing external infrastructure in order to get this functionality. Less complexity and less risks.
   - Cache/artifacting in github doesnt work reliably/isnt easy to share accross workflows. An orphan branch is more technology agnostic.
 
 - You have the custom slackmojis (get them from https://slackmojis.com for instance):
