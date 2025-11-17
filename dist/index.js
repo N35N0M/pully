@@ -62866,12 +62866,13 @@ const main = () => {
                 const pullybranch = '.pullystate';
                 coreExports.info("Check that orphan branch .pullystate exists first...");
                 try {
-                    octokit.request('GET /repos/{owner}/{repo}/commits/{branch}', {
+                    const response = await octokit.request('GET /repos/{owner}/{repo}/commits/{branch}', {
                         owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
                         repo: githubAdapter.GITHUB_REPOSITORY,
                         branch: pullybranch
                     });
-                    // Branch surely exists
+                    coreExports.info("Assuming that .pullystate exists...");
+                    coreExports.info(`${response}`);
                 }
                 catch (e) {
                     coreExports.info(`${e}`);
