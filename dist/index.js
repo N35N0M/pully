@@ -62684,7 +62684,7 @@ const postToSlack = async (slackMessageContent, prNumber, isDraft, githubAdapter
     }
 };
 const handlePullRequestReviewSubmitted = async (pullyUserConfig, payload, github_adapter, pully_options) => {
-    console.log("Received a pull request review submitted event");
+    coreExports.info("Received a pull request review submitted event");
     const prAuthor = getAuthorInfoFromGithubLogin(pullyUserConfig.known_authors, payload.pull_request.user?.login ?? "undefined");
     const prData = payload.pull_request;
     let prStatus = prData.state;
@@ -62722,27 +62722,27 @@ const handlePullRequestGeneric = async (pullyUserConfig, payload, github_adapter
     await postToSlack(slackMessage, prData.number, prStatus === "draft", github_adapter, pully_options);
 };
 const handlePullRequestOpened = async (pullyUserConfig, payload, github_adapter, pully_options) => {
-    console.log(`Received a pull request open event for #${payload.pull_request.url}`);
+    coreExports.info(`Received a pull request open event for #${payload.pull_request.url}`);
     await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
 const handlePullRequestReopened = async (pullyUserConfig, payload, github_adapter, pully_options) => {
-    console.log(`Received a pull request reopened event for #${payload.pull_request.url}`);
+    coreExports.info(`Received a pull request reopened event for #${payload.pull_request.url}`);
     await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
 const handlePullRequestEdited = async (pullyUserConfig, payload, github_adapter, pully_options) => {
-    console.log(`Received a pull request edited event for #${payload.pull_request.url}`);
+    coreExports.info(`Received a pull request edited event for #${payload.pull_request.url}`);
     await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
 const handlePullRequestConvertedToDraft = async (pullyUserConfig, payload, github_adapter, pully_options) => {
-    console.log(`Received a pull request converted to draft event for #${payload.pull_request.url}`);
+    coreExports.info(`Received a pull request converted to draft event for #${payload.pull_request.url}`);
     await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
 const handlePullRequestReadyForReview = async (pullyUserConfig, payload, github_adapter, pully_options) => {
-    console.log(`Received a pull request ready for review event for #${payload.pull_request.url}`);
+    coreExports.info(`Received a pull request ready for review event for #${payload.pull_request.url}`);
     await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
 const handlePullRequestClosed = async (pullyUserConfig, payload, github_adapter, pully_options) => {
-    console.log(`Received a pull request closed event for ${payload.pull_request.url}`);
+    coreExports.info(`Received a pull request closed event for ${payload.pull_request.url}`);
     await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
 const savePullyState = async (pullyState, github_adapter) => {
@@ -62771,12 +62771,12 @@ const savePullyState = async (pullyState, github_adapter) => {
             "X-GitHub-Api-Version": "2022-11-28",
         },
     });
-    console.log("Saved state");
+    coreExports.log("Saved state");
 };
 const main = () => {
     const eventName = githubExports.context.eventName;
     coreExports.info(`The eventName: ${eventName}`);
-    console.log(githubExports.context);
+    coreExports.log(githubExports.context);
     // Environment variables
     // TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
     const GITHUB_REPOSITORY_OWNER = githubExports.context.payload.repository?.owner
@@ -62856,15 +62856,15 @@ const main = () => {
                     existingMessageTimestamp = timestampFile.timestamp;
                 }
                 catch (e) {
-                    console.log("Error when getting existing timestamp...");
-                    console.log(e); // Assuming file not found
+                    coreExports.info("Error when getting existing timestamp...");
+                    coreExports.info(e); // Assuming file not found
                 }
                 return existingMessageTimestamp;
             },
             updateSlackMessageTimestampForPr: async (prNumber, timestamp) => {
                 const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
                 const pullybranch = '.pullystate';
-                console.log("Check that orphan branch .pullystate exists first...");
+                coreExports.info("Check that orphan branch .pullystate exists first...");
                 try {
                     octokit.request('GET /repos/{owner}/{repo}/commits/{branch}', {
                         owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
@@ -62874,11 +62874,11 @@ const main = () => {
                     // Branch surely exists
                 }
                 catch (e) {
-                    console.log(e);
-                    console.log("Threw error when listing commits in .pullystate....");
+                    coreExports.info(e);
+                    coreExports.info("Threw error when listing commits in .pullystate....");
                     // @ts-ignore Ew but quickfix
                     if (e.status == 404) {
-                        console.log("Determined that .pullystate branch doesnt exist. Will try to create  it now...");
+                        coreExports.info("Determined that .pullystate branch doesnt exist. Will try to create  it now...");
                         // Solution from https://github.com/orgs/community/discussions/24699#discussioncomment-3245102
                         const SHA1_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
                         const res = await octokit.request("POST /repos/{owner}/{repo}/git/commits", {
@@ -62897,8 +62897,8 @@ const main = () => {
                         });
                     }
                     else {
-                        console.log("Got error when checking existance of .pullystate but not sure what went wrong...");
-                        console.log(e);
+                        coreExports.info("Got error when checking existance of .pullystate but not sure what went wrong...");
+                        coreExports.info(e);
                     }
                 }
                 // Todo consolidate message path in the github interface
@@ -62936,7 +62936,7 @@ const main = () => {
                     return repoData;
                 }
                 catch (e) {
-                    console.log(e);
+                    coreExports.info(e);
                     return {
                         known_authors: []
                     };
@@ -62979,7 +62979,7 @@ const main = () => {
                 handlePullRequestEdited(repoData, data, githubAdapter, pullyOptions).then(() => savePullyState(repoData, githubAdapter));
                 break;
             default:
-                console.log(`Got unknown event to handle: ${data}`);
+                coreExports.info(`Got unknown event to handle: ${data}`);
         }
     });
 };

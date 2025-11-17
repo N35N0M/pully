@@ -350,13 +350,13 @@ const savePullyState = async (
 			"X-GitHub-Api-Version": "2022-11-28",
 		},
 	});
-	core.log("Saved state");
+	core.info("Saved state");
 };
 
 const main = () => {
 	const eventName = github.context.eventName;
 	core.info(`The eventName: ${eventName}`);
-	core.log(github.context);
+	core.info(`${github.context}`);
 
 	// Environment variables
 	// TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
@@ -476,7 +476,7 @@ const main = () => {
 					existingMessageTimestamp = timestampFile.timestamp;
 				} catch (e: unknown) {
 					core.info("Error when getting existing timestamp...");
-					core.info(e); // Assuming file not found
+					core.info(`${e}`); // Assuming file not found
 				}
 				return existingMessageTimestamp
 			},
@@ -494,7 +494,7 @@ const main = () => {
 					// Branch surely exists
 				}
 				catch (e: unknown) {
-					core.info(e)
+					core.info(`${e}`)
 					core.info("Threw error when listing commits in .pullystate....")
 					// @ts-ignore Ew but quickfix
 					if (e.status == 404){
@@ -519,7 +519,7 @@ const main = () => {
 					}
 					else {
 						core.info("Got error when checking existance of .pullystate but not sure what went wrong...")
-						core.info(e)
+						core.info(`${e}`)
 					}
 				}
 
@@ -563,7 +563,7 @@ const main = () => {
 						repoData = JSON.parse(atob(pullyStateRaw.data.content));
 						return repoData;
 					} catch (e) {
-						core.info(e)
+						core.info(`${e}`)
 						return {
 							known_authors: []
 						}
