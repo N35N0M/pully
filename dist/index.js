@@ -62864,7 +62864,7 @@ const main = () => {
             updateSlackMessageTimestampForPr: async (prNumber, timestamp) => {
                 const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
                 const pullybranch = '.pullystate';
-                // Check that orphan branch .pullystate exists first....
+                console.log("Check that orphan branch .pullystate exists first...");
                 try {
                     octokit.request('GET /repos/{owner}/{repo}/commits/{branch}', {
                         owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
@@ -62874,6 +62874,8 @@ const main = () => {
                     // Branch surely exists
                 }
                 catch (e) {
+                    console.log(e);
+                    console.log("Threw error when listing commits in .pullystate....");
                     // @ts-ignore Ew but quickfix
                     if (e.status == 404) {
                         console.log("Determined that .pullystate branch doesnt exist. Will try to create  it now...");
@@ -62882,7 +62884,7 @@ const main = () => {
                         const res = await octokit.request("POST /repos/{owner}/{repo}/git/commits", {
                             owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
                             repo: githubAdapter.GITHUB_REPOSITORY,
-                            message: "Pully orphan branch initial commit",
+                            message: "orp branch initial commit",
                             tree: SHA1_EMPTY_TREE,
                             parents: [],
                         });
@@ -62905,7 +62907,7 @@ const main = () => {
                     owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
                     repo: githubAdapter.GITHUB_REPOSITORY,
                     path: messagePath,
-                    branch: pullybranch,
+                    branch: `refs/heads/${pullybranch}`,
                     message: "Pully state update",
                     committer: {
                         name: "Pully",
