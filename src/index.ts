@@ -15,7 +15,7 @@ import type {
 } from "@octokit/webhooks-types";
 import { WebClient } from "@slack/web-api";
 import assert from "node:assert";
-import { Octokit } from "octokit";
+import { Octokit, RequestError } from "octokit";
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { constructSlackMessage } from "./constructSlackMessage.ts";
@@ -489,7 +489,7 @@ const main = () => {
 					const response = await octokit.request('GET /repos/{owner}/{repo}/commits/{branch}', {
 						owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
 						repo: githubAdapter.GITHUB_REPOSITORY,	
-						branch: pullybranch				
+						branch: `refs/heads/${pullybranch}`				
 					})
 					core.info("Assuming that .pullystate exists...")
 					core.info(`${response}`);
@@ -497,9 +497,10 @@ const main = () => {
 				catch (e: unknown) {
 					core.info(`${e}`)
 					core.info("Threw error when listing commits in .pullystate....")
-					// @ts-ignore Ew but quickfix
-					if (e.status == 404){
+					if (e instanceof RequestError){
+						core.info("Determined error was RequestError")
 						core.info("Determined that .pullystate branch doesnt exist. Will try to create  it now...")
+						core.info(`${e.status}`)
 
 						// Solution from https://github.com/orgs/community/discussions/24699#discussioncomment-3245102
 						const SHA1_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";

@@ -62869,7 +62869,7 @@ const main = () => {
                     const response = await octokit.request('GET /repos/{owner}/{repo}/commits/{branch}', {
                         owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
                         repo: githubAdapter.GITHUB_REPOSITORY,
-                        branch: pullybranch
+                        branch: `refs/heads/${pullybranch}`
                     });
                     coreExports.info("Assuming that .pullystate exists...");
                     coreExports.info(`${response}`);
@@ -62877,9 +62877,10 @@ const main = () => {
                 catch (e) {
                     coreExports.info(`${e}`);
                     coreExports.info("Threw error when listing commits in .pullystate....");
-                    // @ts-ignore Ew but quickfix
-                    if (e.status == 404) {
+                    if (e instanceof RequestError$1) {
+                        coreExports.info("Determined error was RequestError");
                         coreExports.info("Determined that .pullystate branch doesnt exist. Will try to create  it now...");
+                        coreExports.info(`${e.status}`);
                         // Solution from https://github.com/orgs/community/discussions/24699#discussioncomment-3245102
                         const SHA1_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
                         const res = await octokit.request("POST /repos/{owner}/{repo}/git/commits", {
