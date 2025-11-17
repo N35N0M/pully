@@ -62771,12 +62771,12 @@ const savePullyState = async (pullyState, github_adapter) => {
             "X-GitHub-Api-Version": "2022-11-28",
         },
     });
-    coreExports.log("Saved state");
+    coreExports.info("Saved state");
 };
 const main = () => {
     const eventName = githubExports.context.eventName;
     coreExports.info(`The eventName: ${eventName}`);
-    coreExports.log(githubExports.context);
+    coreExports.info(`${githubExports.context}`);
     // Environment variables
     // TODO: Make sure not to require github if we are actually making this vendor-agnostic at some point..
     const GITHUB_REPOSITORY_OWNER = githubExports.context.payload.repository?.owner
@@ -62857,7 +62857,7 @@ const main = () => {
                 }
                 catch (e) {
                     coreExports.info("Error when getting existing timestamp...");
-                    coreExports.info(e); // Assuming file not found
+                    coreExports.info(`${e}`); // Assuming file not found
                 }
                 return existingMessageTimestamp;
             },
@@ -62874,7 +62874,7 @@ const main = () => {
                     // Branch surely exists
                 }
                 catch (e) {
-                    coreExports.info(e);
+                    coreExports.info(`${e}`);
                     coreExports.info("Threw error when listing commits in .pullystate....");
                     // @ts-ignore Ew but quickfix
                     if (e.status == 404) {
@@ -62898,7 +62898,7 @@ const main = () => {
                     }
                     else {
                         coreExports.info("Got error when checking existance of .pullystate but not sure what went wrong...");
-                        coreExports.info(e);
+                        coreExports.info(`${e}`);
                     }
                 }
                 // Todo consolidate message path in the github interface
@@ -62936,7 +62936,7 @@ const main = () => {
                     return repoData;
                 }
                 catch (e) {
-                    coreExports.info(e);
+                    coreExports.info(`${e}`);
                     return {
                         known_authors: []
                     };
