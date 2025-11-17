@@ -454,7 +454,7 @@ const main = () => {
 			getExistingMessageTimestamp: async (prNumber) => {
 				let existingMessageTimestamp: string | undefined = undefined;
 				const octokit = new Octokit({ auth: GITHUB_TOKEN });
-				const pullybranch = '.pullystate';
+				const pullybranch = 'pullystate';
 
 				const messagePath =
 					`messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
@@ -482,7 +482,7 @@ const main = () => {
 			},
 			updateSlackMessageTimestampForPr: async (prNumber, timestamp) => {
 				const octokit = new Octokit({ auth: GITHUB_TOKEN });
-				const pullybranch = '.pullystate';
+				const pullybranch = 'pullystate';
 
 				core.info("Check that orphan branch .pullystate exists first...")
 				try {
@@ -491,16 +491,15 @@ const main = () => {
 						repo: githubAdapter.GITHUB_REPOSITORY,	
 						branch: `refs/heads/${pullybranch}`				
 					})
-					core.info("Assuming that .pullystate exists...")
+					core.info("Assuming that pullystate exists...")
 					core.info(`${response}`);
 				}
 				catch (e: unknown) {
 					core.info(`${e}`)
 					core.info("Threw error when listing commits in .pullystate....")
-					if (e instanceof RequestError){
+					if (e instanceof RequestError && e.status == 422){
 						core.info("Determined error was RequestError")
-						core.info("Determined that .pullystate branch doesnt exist. Will try to create  it now...")
-						core.info(`${e.status}`)
+						core.info("Determined that .pullystate branch doesnt exist with error code 422. Will try to create  it now...")
 
 						// Solution from https://github.com/orgs/community/discussions/24699#discussioncomment-3245102
 						const SHA1_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";

@@ -62841,7 +62841,7 @@ const main = () => {
             getExistingMessageTimestamp: async (prNumber) => {
                 let existingMessageTimestamp = undefined;
                 const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
-                const pullybranch = '.pullystate';
+                const pullybranch = 'pullystate';
                 const messagePath = `messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
                 try {
                     const pullyStateRaw = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
@@ -62863,7 +62863,7 @@ const main = () => {
             },
             updateSlackMessageTimestampForPr: async (prNumber, timestamp) => {
                 const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
-                const pullybranch = '.pullystate';
+                const pullybranch = 'pullystate';
                 coreExports.info("Check that orphan branch .pullystate exists first...");
                 try {
                     const response = await octokit.request('GET /repos/{owner}/{repo}/commits/{branch}', {
@@ -62871,16 +62871,15 @@ const main = () => {
                         repo: githubAdapter.GITHUB_REPOSITORY,
                         branch: `refs/heads/${pullybranch}`
                     });
-                    coreExports.info("Assuming that .pullystate exists...");
+                    coreExports.info("Assuming that pullystate exists...");
                     coreExports.info(`${response}`);
                 }
                 catch (e) {
                     coreExports.info(`${e}`);
                     coreExports.info("Threw error when listing commits in .pullystate....");
-                    if (e instanceof RequestError$1) {
+                    if (e instanceof RequestError$1 && e.status == 422) {
                         coreExports.info("Determined error was RequestError");
-                        coreExports.info("Determined that .pullystate branch doesnt exist. Will try to create  it now...");
-                        coreExports.info(`${e.status}`);
+                        coreExports.info("Determined that .pullystate branch doesnt exist with error code 422. Will try to create  it now...");
                         // Solution from https://github.com/orgs/community/discussions/24699#discussioncomment-3245102
                         const SHA1_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
                         const res = await octokit.request("POST /repos/{owner}/{repo}/git/commits", {
