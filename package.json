@@ -1,6 +1,6 @@
 {
   "name": "pully",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A CI job that reports one-per-PR status messages to a slack channel, oneliner, constantly updated.",
   "type": "module",
   "exports": {

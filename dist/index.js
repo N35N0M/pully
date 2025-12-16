@@ -62745,34 +62745,6 @@ const handlePullRequestClosed = async (pullyUserConfig, payload, github_adapter,
     coreExports.info(`Received a pull request closed event for ${payload.pull_request.url}`);
     await handlePullRequestGeneric(pullyUserConfig, payload, github_adapter, pully_options);
 };
-const savePullyState = async (pullyState, github_adapter) => {
-    const octokit = new Octokit$1({ auth: github_adapter.GITHUB_TOKEN });
-    const pullyStateRaw = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
-        repo: github_adapter.GITHUB_REPOSITORY,
-        owner: github_adapter.GITHUB_REPOSITORY_OWNER,
-        path: "pullystate.json",
-        ref: "refs/heads/pully-persistent-state-do-not-use-for-coding",
-    });
-    // @ts-expect-error need to assert that this is file somehow
-    const sha = pullyStateRaw.data.sha;
-    await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-        owner: github_adapter.GITHUB_REPOSITORY_OWNER,
-        repo: github_adapter.GITHUB_REPOSITORY,
-        path: "pullystate.json",
-        branch: "refs/heads/pully-persistent-state-do-not-use-for-coding",
-        message: "Pully state update",
-        committer: {
-            name: "Pully",
-            email: "kris@bitheim.no",
-        },
-        content: btoa(JSON.stringify(pullyState)),
-        sha: sha,
-        headers: {
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    });
-    coreExports.info("Saved state");
-};
 const main = () => {
     const eventName = githubExports.context.eventName;
     coreExports.info(`The eventName: ${eventName}`);
@@ -62956,28 +62928,28 @@ const main = () => {
         // Then handle provided event payload (TODO to make this not strictly github based...)
         switch (data.action) {
             case "submitted":
-                handlePullRequestReviewSubmitted(repoData, data, githubAdapter, pullyOptions).then(() => savePullyState(repoData, githubAdapter));
+                handlePullRequestReviewSubmitted(repoData, data, githubAdapter, pullyOptions);
                 break;
             case "closed":
-                handlePullRequestClosed(repoData, data, githubAdapter, pullyOptions).then(() => savePullyState(repoData, githubAdapter));
+                handlePullRequestClosed(repoData, data, githubAdapter, pullyOptions);
                 break;
             case "opened":
-                handlePullRequestOpened(repoData, data, githubAdapter, pullyOptions).then(() => savePullyState(repoData, githubAdapter));
+                handlePullRequestOpened(repoData, data, githubAdapter, pullyOptions);
                 break;
             case "reopened":
-                handlePullRequestReopened(repoData, data, githubAdapter, pullyOptions).then(() => savePullyState(repoData, githubAdapter));
+                handlePullRequestReopened(repoData, data, githubAdapter, pullyOptions);
                 break;
             case "review_requested":
-                handlePullRequestReviewRequested(repoData, data, githubAdapter, pullyOptions).then(() => savePullyState(repoData, githubAdapter));
+                handlePullRequestReviewRequested(repoData, data, githubAdapter, pullyOptions);
                 break;
             case "converted_to_draft":
-                handlePullRequestConvertedToDraft(repoData, data, githubAdapter, pullyOptions).then(() => savePullyState(repoData, githubAdapter));
+                handlePullRequestConvertedToDraft(repoData, data, githubAdapter, pullyOptions);
                 break;
             case "ready_for_review":
-                handlePullRequestReadyForReview(repoData, data, githubAdapter, pullyOptions).then(() => savePullyState(repoData, githubAdapter));
+                handlePullRequestReadyForReview(repoData, data, githubAdapter, pullyOptions);
                 break;
             case "edited":
-                handlePullRequestEdited(repoData, data, githubAdapter, pullyOptions).then(() => savePullyState(repoData, githubAdapter));
+                handlePullRequestEdited(repoData, data, githubAdapter, pullyOptions);
                 break;
             default:
                 coreExports.info(`Got unknown event to handle: ${data}`);
