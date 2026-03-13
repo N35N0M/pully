@@ -19,7 +19,7 @@ jobs:
       contents: write
       pull-requests: read
     steps:
-      - uses: N35N0M/pully@a5daf8099ff616bf6486e7ea32e62d22315ba948
+      - uses: N35N0M/pully@28558233ab9045e859276b634e4a291ec83740a0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULLY_SLACK_CHANNEL: ${{ secrets.PULLY_SLACK_CHANNEL }}
