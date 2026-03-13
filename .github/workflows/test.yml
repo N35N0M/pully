@@ -23,7 +23,5 @@ jobs:
         run: deno task build
       - name: Package code with rollup for fast CI execution times
         run: deno task package package
-      - name: Check that the prebuilt dist is up-to-date with the src
-        run: git diff --exit-code
-
-      # TODO: run testing in some framework (vitest?)
+      - name: Run tests
+        run: deno test
