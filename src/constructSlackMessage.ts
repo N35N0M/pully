@@ -52,7 +52,7 @@ export const constructSlackMessage = async (
 	}
 
 	// TODO: need to figure out how to keep '>' in the text without breaking the slack post link
-	let prDescription = `${prTitle.replaceAll(">", "")} (#${prNumber}) ${linediff} by ${authorToUse} ${author.slackmoji ?? ''}`;
+	let prDescription = `${prTitle.replaceAll(">", "")} (#${prNumber}) ${linediff} by ${authorToUse}${author.slackmoji ? ` ${author.slackmoji}` : ''}`;
 
 	const generateSlackLink = (url: string, displayText: string) => {
 		return `<${url}|${displayText}>`;
