@@ -76,20 +76,24 @@ export const constructSlackMessage = async (
 		};
 	}
 
+	const reviewStatePriority = (state: string): number => {
+		if (state === "approved" || state === "requested-changes") return 2;
+		if (state === "commented") return 1;
+		return 0;
+	};
+
 	// If the reviewer doesnt have an active review request, they might have a review going
 	for (const review of prReviews) {
 		if (review.author?.githubUsername !== undefined) {
-			// Only use the latest review per user
 			const timestamp = review.time;
-			if (!(review.author.githubUsername in reviews) ||
-				(review.author.githubUsername in reviews &&
-					reviews[review.author.githubUsername].state !== "review_requested" &&
-					(reviews[review.author.githubUsername].timestamp < timestamp))) {
+			const existing = reviews[review.author.githubUsername];
+			if (!existing ||
+				(reviewStatePriority(review.state) >= reviewStatePriority(existing.state) &&
+					existing.timestamp < timestamp)) {
 				reviews[review.author.githubUsername] = {
 					state: review.state,
 					timestamp: timestamp,
 				};
-
 			}
 		}
 	}
