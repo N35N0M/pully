@@ -4,6 +4,7 @@ import { GithubAdapter } from "./GithubAdapter.ts";
 import { PullyData } from "./PullyData.ts";
 import { PullyOptions } from "./PullyOptions.ts";
 import { AuthorInfo } from "./AuthorInfo.ts";
+import { ReviewerState } from "./index.ts";
 
 const pullyData: PullyData = { known_authors: [] };
 
@@ -72,4 +73,86 @@ Deno.test("no trailing space after author name when slackmoji is undefined", asy
 
 	// "Bob" should not be followed by a trailing space before the next section separator or end
 	assertEquals(result.includes("by Bob~"), true);
+});
+
+Deno.test("commenter is shown with speech bubble when reviewer only comments", async () => {
+	const prAuthor: AuthorInfo = { githubUsername: "alice", firstName: "Alice" };
+	const reviewer: AuthorInfo = { githubUsername: "bob", firstName: "Bob" };
+
+	const pullyDataWithReviewer: PullyData = { known_authors: [reviewer] };
+
+	const adapter: GithubAdapter = {
+		...makeAdapter(),
+		platform_methods: {
+			...makeAdapter().platform_methods,
+			getPrReviews: async () => [
+				{ author: reviewer, time: new Date(), state: "commented" as ReviewerState },
+			],
+		},
+	};
+
+	const result = await constructSlackMessage(
+		adapter,
+		pullyOptions,
+		pullyDataWithReviewer,
+		prAuthor,
+		"My PR",
+		5,
+		"open",
+		"owner",
+		"repo",
+		"https://github.com/owner/repo/pull/5",
+	);
+
+	assertEquals(result, ":github-pr: <https://github.com/owner/repo/pull/5|[owner/repo]> My PR (#5)  by Alice | :speech_balloon: Bob ");
+});
+
+Deno.test("approval takes precedence over comment when reviewer comments then approves", async () => {
+	const prAuthor: AuthorInfo = { githubUsername: "alice", firstName: "Alice" };
+	const reviewer: AuthorInfo = { githubUsername: "bob", firstName: "Bob" };
+	const pullyDataWithReviewer: PullyData = { known_authors: [reviewer] };
+
+	const adapter: GithubAdapter = {
+		...makeAdapter(),
+		platform_methods: {
+			...makeAdapter().platform_methods,
+			getPrReviews: async () => [
+				{ author: reviewer, time: new Date("2024-01-01T10:00:00Z"), state: "commented" as ReviewerState },
+				{ author: reviewer, time: new Date("2024-01-01T11:00:00Z"), state: "approved" as ReviewerState },
+			],
+		},
+	};
+
+	const result = await constructSlackMessage(
+		adapter, pullyOptions, pullyDataWithReviewer, prAuthor,
+		"My PR", 6, "open", "owner", "repo",
+		"https://github.com/owner/repo/pull/6",
+	);
+
+	assertEquals(result, ":github-pr: <https://github.com/owner/repo/pull/6|[owner/repo]> My PR (#6)  by Alice | :github-approve: Bob ");
+});
+
+Deno.test("approval takes precedence over comment when reviewer approves then comments", async () => {
+	const prAuthor: AuthorInfo = { githubUsername: "alice", firstName: "Alice" };
+	const reviewer: AuthorInfo = { githubUsername: "bob", firstName: "Bob" };
+	const pullyDataWithReviewer: PullyData = { known_authors: [reviewer] };
+
+	const adapter: GithubAdapter = {
+		...makeAdapter(),
+		platform_methods: {
+			...makeAdapter().platform_methods,
+			getPrReviews: async () => [
+				{ author: reviewer, time: new Date("2024-01-01T10:00:00Z"), state: "approved" as ReviewerState },
+				{ author: reviewer, time: new Date("2024-01-01T11:00:00Z"), state: "commented" as ReviewerState },
+			],
+		},
+	};
+
+	const result = await constructSlackMessage(
+		adapter, pullyOptions, pullyDataWithReviewer, prAuthor,
+		"My PR", 7, "open", "owner", "repo",
+		"https://github.com/owner/repo/pull/7",
+	);
+
+	assertEquals(result, ":github-pr: <https://github.com/owner/repo/pull/7|[owner/repo]> My PR (#7)  by Alice | :github-approve: Bob ");
 });
