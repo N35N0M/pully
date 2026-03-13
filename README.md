@@ -42,6 +42,7 @@ NOTE READ THIS: that pully will store some information in a dedicated orphan bra
 6. Add the pully github action to the `.github/workflows` folder of your repo's main branch. An example is found in this repos self-test, `pully/.github/workflows/pully.yml`. Replace the self-test commit SHA with a github release tag (or its SHA, to guarantee that the content doesnt change): https://github.com/N35N0M/pully/tags
 7. Create a new PR, the pully github action should run when you create the PR and post to your slack channel.
 
+
 ## Core design guidelines
 - One slack message per unique PR
   - If title changes: Edit the original slack message
