@@ -97,6 +97,7 @@ export const constructSlackMessage = async (
 	const approvers = new Set();
 	const change_requesters = new Set();
 	const review_requests = new Set();
+	const commenters = new Set();
 
 	for (const [reviewer, state] of Object.entries(reviews)) {
 		const reviewerData = getAuthorInfoFromGithubLogin(
@@ -118,6 +119,13 @@ export const constructSlackMessage = async (
 						: ""}`
 				);
 				break;
+			case "commented":
+				commenters.add(
+					`${reviewerData.firstName ?? reviewerData.githubUsername} ${reviewerData.slackmoji
+						? `${reviewerData.slackmoji}`
+						: ""}`
+				);
+				break;
 			case "review_requested":
 				// Only give @ mentions when a review is requested to avoid notification spam
 				review_requests.add(reviewerData.slackMemberId ? `<@${reviewerData.slackMemberId}>` : `${reviewerData.githubUsername}`);
@@ -134,6 +142,11 @@ export const constructSlackMessage = async (
 		if (change_requesters.size !== 0) {
 			reviewStatusText += " | :github-changes-requested: " +
 				Array.from(change_requesters).join(", ");
+		}
+
+		if (commenters.size !== 0) {
+			reviewStatusText += " | :speech_balloon: " +
+				Array.from(commenters).join(", ");
 		}
 
 		if (review_requests.size !== 0) {

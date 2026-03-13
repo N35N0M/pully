@@ -30,6 +30,7 @@ export type ReviewerState =
 	| "approved"
 	| "requested-changes"
 	| "review_requested"
+	| "commented"
 	| "dismissed";
 
 export type GithubUsername = string;
@@ -405,6 +406,9 @@ const main = () => {
 					}
 					else if (value.state === "CHANGES_REQUESTED") {
 						reviewType = "requested-changes"
+					}
+					else if (value.state === "COMMENTED") {
+						reviewType = "commented"
 					}
 
 					if (value.submitted_at === undefined) {
