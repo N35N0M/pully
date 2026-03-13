@@ -2,7 +2,7 @@ name: Pully reminder
 
 on:
   schedule:
-    - cron: '* * * * *'  # Every minute
+    - cron: '*/5 * * * *'  # Every 5 minutes
 
 jobs:
   remind:
