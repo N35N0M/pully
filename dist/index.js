@@ -1,7 +1,7 @@
 import require$$0$1 from 'node:os';
 import require$$1 from 'node:path';
-import require$$1$5 from 'node:querystring';
-import require$$1$6 from 'node:util';
+import require$$1$4 from 'node:querystring';
+import require$$1$5 from 'node:util';
 import require$$3$1 from 'node:zlib';
 import require$$1$1 from 'util';
 import require$$0$2 from 'stream';
@@ -12,26 +12,26 @@ import require$$0$3 from 'url';
 import require$$1$3 from 'fs';
 import require$$8 from 'crypto';
 import require$$0$5 from 'assert';
-import require$$1$4 from 'tty';
-import require$$0$4 from 'os';
+import require$$0$4 from 'tty';
 import require$$8$1 from 'zlib';
 import require$$4$2 from 'events';
 import require$$0$6 from 'node:fs';
 import require$$0$7 from 'node:stream';
 import assert from 'node:assert';
-import require$$0$8 from 'net';
-import require$$1$7 from 'tls';
+import require$$0$8 from 'os';
+import require$$0$9 from 'net';
+import require$$1$6 from 'tls';
 import require$$7 from 'buffer';
 import require$$8$2 from 'querystring';
 import require$$14 from 'stream/web';
-import require$$0$9 from 'node:events';
-import require$$0$a from 'worker_threads';
+import require$$0$a from 'node:events';
+import require$$0$b from 'worker_threads';
 import require$$2$3 from 'perf_hooks';
 import require$$5 from 'util/types';
 import require$$4$3 from 'async_hooks';
-import require$$1$8 from 'console';
+import require$$1$7 from 'console';
 import require$$6 from 'string_decoder';
-import require$$0$b from 'diagnostics_channel';
+import require$$0$c from 'diagnostics_channel';
 import require$$2$4 from 'child_process';
 import require$$6$1 from 'timers';
 
@@ -13902,7 +13902,7 @@ var followRedirects = {exports: {}};
 
 var src = {exports: {}};
 
-var browser = {exports: {}};
+var browser$1 = {exports: {}};
 
 /**
  * Helpers.
@@ -14377,11 +14377,11 @@ function requireCommon () {
 
 /* eslint-env browser */
 
-var hasRequiredBrowser;
+var hasRequiredBrowser$1;
 
-function requireBrowser () {
-	if (hasRequiredBrowser) return browser.exports;
-	hasRequiredBrowser = 1;
+function requireBrowser$1 () {
+	if (hasRequiredBrowser$1) return browser$1.exports;
+	hasRequiredBrowser$1 = 1;
 	(function (module, exports) {
 		/**
 		 * This is the web browser implementation of `debug()`.
@@ -14653,169 +14653,43 @@ function requireBrowser () {
 				return '[UnexpectedJSONParseError]: ' + error.message;
 			}
 		}; 
-	} (browser, browser.exports));
-	return browser.exports;
+	} (browser$1, browser$1.exports));
+	return browser$1.exports;
 }
 
 var node = {exports: {}};
 
-var hasFlag;
-var hasRequiredHasFlag;
+/* eslint-env browser */
 
-function requireHasFlag () {
-	if (hasRequiredHasFlag) return hasFlag;
-	hasRequiredHasFlag = 1;
+var browser;
+var hasRequiredBrowser;
 
-	hasFlag = (flag, argv = process.argv) => {
-		const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
-		const position = argv.indexOf(prefix + flag);
-		const terminatorPosition = argv.indexOf('--');
-		return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
+function requireBrowser () {
+	if (hasRequiredBrowser) return browser;
+	hasRequiredBrowser = 1;
+
+	function getChromeVersion() {
+		const matches = /(Chrome|Chromium)\/(?<chromeVersion>\d+)\./.exec(navigator.userAgent);
+
+		if (!matches) {
+			return;
+		}
+
+		return Number.parseInt(matches.groups.chromeVersion, 10);
+	}
+
+	const colorSupport = getChromeVersion() >= 69 ? {
+		level: 1,
+		hasBasic: true,
+		has256: false,
+		has16m: false
+	} : false;
+
+	browser = {
+		stdout: colorSupport,
+		stderr: colorSupport
 	};
-	return hasFlag;
-}
-
-var supportsColor_1;
-var hasRequiredSupportsColor;
-
-function requireSupportsColor () {
-	if (hasRequiredSupportsColor) return supportsColor_1;
-	hasRequiredSupportsColor = 1;
-	const os = require$$0$4;
-	const tty = require$$1$4;
-	const hasFlag = requireHasFlag();
-
-	const {env} = process;
-
-	let forceColor;
-	if (hasFlag('no-color') ||
-		hasFlag('no-colors') ||
-		hasFlag('color=false') ||
-		hasFlag('color=never')) {
-		forceColor = 0;
-	} else if (hasFlag('color') ||
-		hasFlag('colors') ||
-		hasFlag('color=true') ||
-		hasFlag('color=always')) {
-		forceColor = 1;
-	}
-
-	if ('FORCE_COLOR' in env) {
-		if (env.FORCE_COLOR === 'true') {
-			forceColor = 1;
-		} else if (env.FORCE_COLOR === 'false') {
-			forceColor = 0;
-		} else {
-			forceColor = env.FORCE_COLOR.length === 0 ? 1 : Math.min(parseInt(env.FORCE_COLOR, 10), 3);
-		}
-	}
-
-	function translateLevel(level) {
-		if (level === 0) {
-			return false;
-		}
-
-		return {
-			level,
-			hasBasic: true,
-			has256: level >= 2,
-			has16m: level >= 3
-		};
-	}
-
-	function supportsColor(haveStream, streamIsTTY) {
-		if (forceColor === 0) {
-			return 0;
-		}
-
-		if (hasFlag('color=16m') ||
-			hasFlag('color=full') ||
-			hasFlag('color=truecolor')) {
-			return 3;
-		}
-
-		if (hasFlag('color=256')) {
-			return 2;
-		}
-
-		if (haveStream && !streamIsTTY && forceColor === undefined) {
-			return 0;
-		}
-
-		const min = forceColor || 0;
-
-		if (env.TERM === 'dumb') {
-			return min;
-		}
-
-		if (process.platform === 'win32') {
-			// Windows 10 build 10586 is the first Windows release that supports 256 colors.
-			// Windows 10 build 14931 is the first release that supports 16m/TrueColor.
-			const osRelease = os.release().split('.');
-			if (
-				Number(osRelease[0]) >= 10 &&
-				Number(osRelease[2]) >= 10586
-			) {
-				return Number(osRelease[2]) >= 14931 ? 3 : 2;
-			}
-
-			return 1;
-		}
-
-		if ('CI' in env) {
-			if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
-				return 1;
-			}
-
-			return min;
-		}
-
-		if ('TEAMCITY_VERSION' in env) {
-			return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
-		}
-
-		if (env.COLORTERM === 'truecolor') {
-			return 3;
-		}
-
-		if ('TERM_PROGRAM' in env) {
-			const version = parseInt((env.TERM_PROGRAM_VERSION || '').split('.')[0], 10);
-
-			switch (env.TERM_PROGRAM) {
-				case 'iTerm.app':
-					return version >= 3 ? 3 : 2;
-				case 'Apple_Terminal':
-					return 2;
-				// No default
-			}
-		}
-
-		if (/-256(color)?$/i.test(env.TERM)) {
-			return 2;
-		}
-
-		if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
-			return 1;
-		}
-
-		if ('COLORTERM' in env) {
-			return 1;
-		}
-
-		return min;
-	}
-
-	function getSupportLevel(stream) {
-		const level = supportsColor(stream, stream && stream.isTTY);
-		return translateLevel(level);
-	}
-
-	supportsColor_1 = {
-		supportsColor: getSupportLevel,
-		stdout: translateLevel(supportsColor(true, tty.isatty(1))),
-		stderr: translateLevel(supportsColor(true, tty.isatty(2)))
-	};
-	return supportsColor_1;
+	return browser;
 }
 
 /**
@@ -14828,7 +14702,7 @@ function requireNode () {
 	if (hasRequiredNode) return node.exports;
 	hasRequiredNode = 1;
 	(function (module, exports) {
-		const tty = require$$1$4;
+		const tty = require$$0$4;
 		const util = require$$1$1;
 
 		/**
@@ -14855,7 +14729,7 @@ function requireNode () {
 		try {
 			// Optional dependency (as in, doesn't need to be installed, NOT like optionalDependencies in package.json)
 			// eslint-disable-next-line import/no-extraneous-dependencies
-			const supportsColor = requireSupportsColor();
+			const supportsColor = requireBrowser();
 
 			if (supportsColor && (supportsColor.stderr || supportsColor).level >= 2) {
 				exports.colors = [
@@ -15102,7 +14976,7 @@ function requireSrc () {
 	if (hasRequiredSrc) return src.exports;
 	hasRequiredSrc = 1;
 	if (typeof process === 'undefined' || process.type === 'renderer' || process.browser === true || process.__nwjs) {
-		src.exports = requireBrowser();
+		src.exports = requireBrowser$1();
 	} else {
 		src.exports = requireNode();
 	}
@@ -24977,8 +24851,8 @@ function requireWebClient () {
 	WebClient.WebClient = WebClient.WebClientEvent = void 0;
 	WebClient.buildThreadTsWarningMessage = buildThreadTsWarningMessage;
 	const node_path_1 = require$$1;
-	const node_querystring_1 = require$$1$5;
-	const node_util_1 = require$$1$6;
+	const node_querystring_1 = require$$1$4;
+	const node_util_1 = require$$1$5;
 	const node_zlib_1 = __importDefault(require$$3$1);
 	const axios_1 = __importDefault(/*@__PURE__*/ requireAxios());
 	const form_data_1 = __importDefault(requireForm_data());
@@ -26813,7 +26687,7 @@ var createTokenAuth$1 = function createTokenAuth2(token) {
   });
 };
 
-const VERSION$b = "7.0.3";
+const VERSION$b = "7.0.4";
 
 const noop$2 = () => {
 };
@@ -27249,7 +27123,7 @@ function paginateGraphQL(octokit) {
   };
 }
 
-const VERSION$9 = "16.0.0";
+const VERSION$9 = "16.1.0";
 
 const Endpoints$1 = {
   actions: {
@@ -28060,11 +27934,20 @@ const Endpoints$1 = {
     removeSelectedRepoFromOrgSecret: [
       "DELETE /orgs/{org}/dependabot/secrets/{secret_name}/repositories/{repository_id}"
     ],
+    repositoryAccessForOrg: [
+      "GET /organizations/{org}/dependabot/repository-access"
+    ],
+    setRepositoryAccessDefaultLevel: [
+      "PUT /organizations/{org}/dependabot/repository-access/default-level"
+    ],
     setSelectedReposForOrgSecret: [
       "PUT /orgs/{org}/dependabot/secrets/{secret_name}/repositories"
     ],
     updateAlert: [
       "PATCH /repos/{owner}/{repo}/dependabot/alerts/{alert_number}"
+    ],
+    updateRepositoryAccessForOrg: [
+      "PATCH /organizations/{org}/dependabot/repository-access"
     ]
   },
   dependencyGraph: {
@@ -28170,6 +28053,9 @@ const Endpoints$1 = {
     addAssignees: [
       "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees"
     ],
+    addBlockedByDependency: [
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by"
+    ],
     addLabels: ["POST /repos/{owner}/{repo}/issues/{issue_number}/labels"],
     addSubIssue: [
       "POST /repos/{owner}/{repo}/issues/{issue_number}/sub_issues"
@@ -28196,10 +28082,17 @@ const Endpoints$1 = {
     getEvent: ["GET /repos/{owner}/{repo}/issues/events/{event_id}"],
     getLabel: ["GET /repos/{owner}/{repo}/labels/{name}"],
     getMilestone: ["GET /repos/{owner}/{repo}/milestones/{milestone_number}"],
+    getParent: ["GET /repos/{owner}/{repo}/issues/{issue_number}/parent"],
     list: ["GET /issues"],
     listAssignees: ["GET /repos/{owner}/{repo}/assignees"],
     listComments: ["GET /repos/{owner}/{repo}/issues/{issue_number}/comments"],
     listCommentsForRepo: ["GET /repos/{owner}/{repo}/issues/comments"],
+    listDependenciesBlockedBy: [
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by"
+    ],
+    listDependenciesBlocking: [
+      "GET /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocking"
+    ],
     listEvents: ["GET /repos/{owner}/{repo}/issues/{issue_number}/events"],
     listEventsForRepo: ["GET /repos/{owner}/{repo}/issues/events"],
     listEventsForTimeline: [
@@ -28225,6 +28118,9 @@ const Endpoints$1 = {
     ],
     removeAssignees: [
       "DELETE /repos/{owner}/{repo}/issues/{issue_number}/assignees"
+    ],
+    removeDependencyBlockedBy: [
+      "DELETE /repos/{owner}/{repo}/issues/{issue_number}/dependencies/blocked_by/{issue_id}"
     ],
     removeLabel: [
       "DELETE /repos/{owner}/{repo}/issues/{issue_number}/labels/{name}"
@@ -28328,6 +28224,9 @@ const Endpoints$1 = {
     convertMemberToOutsideCollaborator: [
       "PUT /orgs/{org}/outside_collaborators/{username}"
     ],
+    createArtifactStorageRecord: [
+      "POST /orgs/{org}/artifacts/metadata/storage-record"
+    ],
     createInvitation: ["POST /orgs/{org}/invitations"],
     createIssueType: ["POST /orgs/{org}/issue-types"],
     createOrUpdateCustomProperties: ["PATCH /orgs/{org}/properties/schema"],
@@ -28339,15 +28238,15 @@ const Endpoints$1 = {
     ],
     createWebhook: ["POST /orgs/{org}/hooks"],
     delete: ["DELETE /orgs/{org}"],
+    deleteAttestationsBulk: ["POST /orgs/{org}/attestations/delete-request"],
+    deleteAttestationsById: [
+      "DELETE /orgs/{org}/attestations/{attestation_id}"
+    ],
+    deleteAttestationsBySubjectDigest: [
+      "DELETE /orgs/{org}/attestations/digest/{subject_digest}"
+    ],
     deleteIssueType: ["DELETE /orgs/{org}/issue-types/{issue_type_id}"],
     deleteWebhook: ["DELETE /orgs/{org}/hooks/{hook_id}"],
-    enableOrDisableSecurityProductOnAllOrgRepos: [
-      "POST /orgs/{org}/{security_product}/{enablement}",
-      {},
-      {
-        deprecated: "octokit.rest.orgs.enableOrDisableSecurityProductOnAllOrgRepos() is deprecated, see https://docs.github.com/rest/orgs/orgs#enable-or-disable-a-security-feature-for-an-organization"
-      }
-    ],
     get: ["GET /orgs/{org}"],
     getAllCustomProperties: ["GET /orgs/{org}/properties/schema"],
     getCustomProperty: [
@@ -28367,7 +28266,13 @@ const Endpoints$1 = {
     ],
     list: ["GET /organizations"],
     listAppInstallations: ["GET /orgs/{org}/installations"],
+    listArtifactStorageRecords: [
+      "GET /orgs/{org}/artifacts/{subject_digest}/metadata/storage-records"
+    ],
     listAttestations: ["GET /orgs/{org}/attestations/{subject_digest}"],
+    listAttestationsBulk: [
+      "POST /orgs/{org}/attestations/bulk-list{?per_page,before,after}"
+    ],
     listBlockedUsers: ["GET /orgs/{org}/blocks"],
     listCustomPropertiesValuesForRepos: ["GET /orgs/{org}/properties/values"],
     listFailedInvitations: ["GET /orgs/{org}/failed_invitations"],
@@ -28560,6 +28465,44 @@ const Endpoints$1 = {
     listOrgPrivateRegistries: ["GET /orgs/{org}/private-registries"],
     updateOrgPrivateRegistry: [
       "PATCH /orgs/{org}/private-registries/{secret_name}"
+    ]
+  },
+  projects: {
+    addItemForOrg: ["POST /orgs/{org}/projectsV2/{project_number}/items"],
+    addItemForUser: ["POST /users/{user_id}/projectsV2/{project_number}/items"],
+    deleteItemForOrg: [
+      "DELETE /orgs/{org}/projectsV2/{project_number}/items/{item_id}"
+    ],
+    deleteItemForUser: [
+      "DELETE /users/{user_id}/projectsV2/{project_number}/items/{item_id}"
+    ],
+    getFieldForOrg: [
+      "GET /orgs/{org}/projectsV2/{project_number}/fields/{field_id}"
+    ],
+    getFieldForUser: [
+      "GET /users/{user_id}/projectsV2/{project_number}/fields/{field_id}"
+    ],
+    getForOrg: ["GET /orgs/{org}/projectsV2/{project_number}"],
+    getForUser: ["GET /users/{user_id}/projectsV2/{project_number}"],
+    getOrgItem: ["GET /orgs/{org}/projectsV2/{project_number}/items/{item_id}"],
+    getUserItem: [
+      "GET /users/{user_id}/projectsV2/{project_number}/items/{item_id}"
+    ],
+    listFieldsForOrg: ["GET /orgs/{org}/projectsV2/{project_number}/fields"],
+    listFieldsForUser: [
+      "GET /users/{user_id}/projectsV2/{project_number}/fields"
+    ],
+    listForOrg: ["GET /orgs/{org}/projectsV2"],
+    listForUser: ["GET /users/{username}/projectsV2"],
+    listItemsForOrg: ["GET /orgs/{org}/projectsV2/{project_number}/items"],
+    listItemsForUser: [
+      "GET /users/{user_id}/projectsV2/{project_number}/items"
+    ],
+    updateItemForOrg: [
+      "PATCH /orgs/{org}/projectsV2/{project_number}/items/{item_id}"
+    ],
+    updateItemForUser: [
+      "PATCH /users/{user_id}/projectsV2/{project_number}/items/{item_id}"
     ]
   },
   pulls: {
@@ -29140,8 +29083,14 @@ const Endpoints$1 = {
     listLocationsForAlert: [
       "GET /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}/locations"
     ],
+    listOrgPatternConfigs: [
+      "GET /orgs/{org}/secret-scanning/pattern-configurations"
+    ],
     updateAlert: [
       "PATCH /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}"
+    ],
+    updateOrgPatternConfigs: [
+      "PATCH /orgs/{org}/secret-scanning/pattern-configurations"
     ]
   },
   securityAdvisories: {
@@ -29251,6 +29200,15 @@ const Endpoints$1 = {
     ],
     createPublicSshKeyForAuthenticatedUser: ["POST /user/keys"],
     createSshSigningKeyForAuthenticatedUser: ["POST /user/ssh_signing_keys"],
+    deleteAttestationsBulk: [
+      "POST /users/{username}/attestations/delete-request"
+    ],
+    deleteAttestationsById: [
+      "DELETE /users/{username}/attestations/{attestation_id}"
+    ],
+    deleteAttestationsBySubjectDigest: [
+      "DELETE /users/{username}/attestations/digest/{subject_digest}"
+    ],
     deleteEmailForAuthenticated: [
       "DELETE /user/emails",
       {},
@@ -29295,6 +29253,9 @@ const Endpoints$1 = {
     ],
     list: ["GET /users"],
     listAttestations: ["GET /users/{username}/attestations/{subject_digest}"],
+    listAttestationsBulk: [
+      "POST /users/{username}/attestations/bulk-list{?per_page,before,after}"
+    ],
     listBlockedByAuthenticated: [
       "GET /user/blocks",
       {},
@@ -31439,7 +31400,7 @@ function requireCommand () {
 	};
 	Object.defineProperty(command, "__esModule", { value: true });
 	command.issue = command.issueCommand = void 0;
-	const os = __importStar(require$$0$4);
+	const os = __importStar(require$$0$8);
 	const utils_1 = requireUtils$3();
 	/**
 	 * Commands
@@ -31549,7 +31510,7 @@ function requireFileCommand () {
 	/* eslint-disable @typescript-eslint/no-explicit-any */
 	const crypto = __importStar(require$$8);
 	const fs = __importStar(require$$1$3);
-	const os = __importStar(require$$0$4);
+	const os = __importStar(require$$0$8);
 	const utils_1 = requireUtils$3();
 	function issueFileCommand(command, message) {
 	    const filePath = process.env[`GITHUB_${command}`];
@@ -31698,7 +31659,7 @@ var hasRequiredTunnel$1;
 function requireTunnel$1 () {
 	if (hasRequiredTunnel$1) return tunnel$1;
 	hasRequiredTunnel$1 = 1;
-	var tls = require$$1$7;
+	var tls = require$$1$6;
 	var http = require$$2$2;
 	var https = require$$4$1;
 	var events = require$$4$2;
@@ -32420,7 +32381,7 @@ function requireUtil$6 () {
 	const { kDestroyed, kBodyUsed } = requireSymbols$4();
 	const { IncomingMessage } = require$$2$2;
 	const stream = require$$0$2;
-	const net = require$$0$8;
+	const net = require$$0$9;
 	const { InvalidArgumentError } = requireErrors();
 	const { Blob } = require$$7;
 	const nodeUtil = require$$1$1;
@@ -33079,8 +33040,8 @@ function requireSbmh () {
 	 * Based heavily on the Streaming Boyer-Moore-Horspool C++ implementation
 	 * by Hongli Lai at: https://github.com/FooBarWidget/boyer-moore-horspool
 	 */
-	const EventEmitter = require$$0$9.EventEmitter;
-	const inherits = require$$1$6.inherits;
+	const EventEmitter = require$$0$a.EventEmitter;
+	const inherits = require$$1$5.inherits;
 
 	function SBMH (needle) {
 	  if (typeof needle === 'string') {
@@ -33289,7 +33250,7 @@ function requirePartStream () {
 	if (hasRequiredPartStream) return PartStream_1;
 	hasRequiredPartStream = 1;
 
-	const inherits = require$$1$6.inherits;
+	const inherits = require$$1$5.inherits;
 	const ReadableStream = require$$0$7.Readable;
 
 	function PartStream (opts) {
@@ -33334,8 +33295,8 @@ function requireHeaderParser () {
 	if (hasRequiredHeaderParser) return HeaderParser_1;
 	hasRequiredHeaderParser = 1;
 
-	const EventEmitter = require$$0$9.EventEmitter;
-	const inherits = require$$1$6.inherits;
+	const EventEmitter = require$$0$a.EventEmitter;
+	const inherits = require$$1$5.inherits;
 	const getLimit = requireGetLimit();
 
 	const StreamSearch = requireSbmh();
@@ -33443,7 +33404,7 @@ function requireDicer () {
 	hasRequiredDicer = 1;
 
 	const WritableStream = require$$0$7.Writable;
-	const inherits = require$$1$6.inherits;
+	const inherits = require$$1$5.inherits;
 
 	const StreamSearch = requireSbmh();
 
@@ -34020,7 +33981,7 @@ function requireMultipart () {
 	//     -- this will require modifications to utils.parseParams
 
 	const { Readable } = require$$0$7;
-	const { inherits } = require$$1$6;
+	const { inherits } = require$$1$5;
 
 	const Dicer = requireDicer();
 
@@ -34586,7 +34547,7 @@ function requireMain () {
 	hasRequiredMain = 1;
 
 	const WritableStream = require$$0$7.Writable;
-	const { inherits } = require$$1$6;
+	const { inherits } = require$$1$5;
 	const Dicer = requireDicer();
 
 	const MultipartParser = requireMultipart();
@@ -34678,7 +34639,7 @@ function requireConstants$3 () {
 	if (hasRequiredConstants$3) return constants$3;
 	hasRequiredConstants$3 = 1;
 
-	const { MessageChannel, receiveMessageOnPort } = require$$0$a;
+	const { MessageChannel, receiveMessageOnPort } = require$$0$b;
 
 	const corsSafeListedMethods = ['GET', 'HEAD', 'POST'];
 	const corsSafeListedMethodsSet = new Set(corsSafeListedMethods);
@@ -39324,7 +39285,7 @@ function requireConnect () {
 	if (hasRequiredConnect) return connect;
 	hasRequiredConnect = 1;
 
-	const net = require$$0$8;
+	const net = require$$0$9;
 	const assert = require$$0$5;
 	const util = requireUtil$6();
 	const { InvalidArgumentError, ConnectTimeoutError } = requireErrors();
@@ -39410,7 +39371,7 @@ function requireConnect () {
 	    let socket;
 	    if (protocol === 'https:') {
 	      if (!tls) {
-	        tls = require$$1$7;
+	        tls = require$$1$6;
 	      }
 	      servername = servername || options.servername || util.getServerName(host) || null;
 
@@ -40091,7 +40052,7 @@ function requireClient () {
 	/* global WebAssembly */
 
 	const assert = require$$0$5;
-	const net = require$$0$8;
+	const net = require$$0$9;
 	const http = require$$2$2;
 	const { pipeline } = require$$0$2;
 	const util = requireUtil$6();
@@ -45434,7 +45395,7 @@ function requirePendingInterceptorsFormatter () {
 	hasRequiredPendingInterceptorsFormatter = 1;
 
 	const { Transform } = require$$0$2;
-	const { Console } = require$$1$8;
+	const { Console } = require$$1$7;
 
 	/**
 	 * Gets the output of `console.table(…)` as a string.
@@ -53611,7 +53572,7 @@ function requireEvents () {
 
 	const { webidl } = requireWebidl();
 	const { kEnumerableProperty } = requireUtil$6();
-	const { MessagePort } = require$$0$a;
+	const { MessagePort } = require$$0$b;
 
 	/**
 	 * @see https://html.spec.whatwg.org/multipage/comms.html#messageevent
@@ -54128,7 +54089,7 @@ function requireConnection () {
 	if (hasRequiredConnection) return connection;
 	hasRequiredConnection = 1;
 
-	const diagnosticsChannel = require$$0$b;
+	const diagnosticsChannel = require$$0$c;
 	const { uid, states } = requireConstants();
 	const {
 	  kReadyState,
@@ -54509,7 +54470,7 @@ function requireReceiver () {
 	hasRequiredReceiver = 1;
 
 	const { Writable } = require$$0$2;
-	const diagnosticsChannel = require$$0$b;
+	const diagnosticsChannel = require$$0$c;
 	const { parserStates, opcodes, states, emptyBuffer } = requireConstants();
 	const { kReadyState, kSentClose, kResponse, kReceivedClose } = requireSymbols();
 	const { isValidStatusCode, failWebsocketConnection, websocketMessageReceived } = requireUtil();
@@ -56525,7 +56486,7 @@ function requireSummary () {
 		};
 		Object.defineProperty(exports, "__esModule", { value: true });
 		exports.summary = exports.markdownSummary = exports.SUMMARY_DOCS_URL = exports.SUMMARY_ENV_VAR = void 0;
-		const os_1 = require$$0$4;
+		const os_1 = require$$0$8;
 		const fs_1 = require$$1$3;
 		const { access, appendFile, writeFile } = fs_1.promises;
 		exports.SUMMARY_ENV_VAR = 'GITHUB_STEP_SUMMARY';
@@ -57414,7 +57375,7 @@ function requireToolrunner () {
 	};
 	Object.defineProperty(toolrunner, "__esModule", { value: true });
 	toolrunner.argStringToArray = toolrunner.ToolRunner = void 0;
-	const os = __importStar(require$$0$4);
+	const os = __importStar(require$$0$8);
 	const events = __importStar(require$$4$2);
 	const child = __importStar(require$$2$4);
 	const path = __importStar(require$$1$2);
@@ -58157,7 +58118,7 @@ function requirePlatform () {
 		};
 		Object.defineProperty(exports, "__esModule", { value: true });
 		exports.getDetails = exports.isLinux = exports.isMacOS = exports.isWindows = exports.arch = exports.platform = void 0;
-		const os_1 = __importDefault(require$$0$4);
+		const os_1 = __importDefault(require$$0$8);
 		const exec = __importStar(requireExec());
 		const getWindowsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
 		    const { stdout: version } = yield exec.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', undefined, {
@@ -58260,7 +58221,7 @@ function requireCore () {
 		const command_1 = requireCommand();
 		const file_command_1 = requireFileCommand();
 		const utils_1 = requireUtils$3();
-		const os = __importStar(require$$0$4);
+		const os = __importStar(require$$0$8);
 		const path = __importStar(require$$1$2);
 		const oidc_utils_1 = requireOidcUtils();
 		/**
@@ -58584,7 +58545,7 @@ function requireContext () {
 	Object.defineProperty(context, "__esModule", { value: true });
 	context.Context = void 0;
 	const fs_1 = require$$1$3;
-	const os_1 = require$$0$4;
+	const os_1 = require$$0$8;
 	class Context {
 	    /**
 	     * Hydrate the context from the environment
@@ -62573,7 +62534,7 @@ const constructSlackMessage = async (github_adapter, pully_options, pullyRepodat
         repoDisplayName = repoName;
     }
     // TODO: need to figure out how to keep '>' in the text without breaking the slack post link
-    let prDescription = `${prTitle.replaceAll(">", "")} (#${prNumber}) ${linediff} by ${authorToUse} ${author.slackmoji ?? ''}`;
+    let prDescription = `${prTitle.replaceAll(">", "")} (#${prNumber}) ${linediff} by ${authorToUse}${author.slackmoji ? ` ${author.slackmoji}` : ''}`;
     const generateSlackLink = (url, displayText) => {
         return `<${url}|${displayText}>`;
     };
