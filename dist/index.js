@@ -62570,6 +62570,7 @@ const constructSlackMessage = async (github_adapter, pully_options, pullyRepodat
     const approvers = new Set();
     const change_requesters = new Set();
     const review_requests = new Set();
+    const commenters = new Set();
     for (const [reviewer, state] of Object.entries(reviews)) {
         const reviewerData = getAuthorInfoFromGithubLogin(pullyRepodataCache.known_authors, reviewer);
         switch (state.state) {
@@ -62580,6 +62581,11 @@ const constructSlackMessage = async (github_adapter, pully_options, pullyRepodat
                 break;
             case "requested-changes":
                 change_requesters.add(`${reviewerData.firstName ?? reviewerData.githubUsername} ${reviewerData.slackmoji
+                    ? `${reviewerData.slackmoji}`
+                    : ""}`);
+                break;
+            case "commented":
+                commenters.add(`${reviewerData.firstName ?? reviewerData.githubUsername} ${reviewerData.slackmoji
                     ? `${reviewerData.slackmoji}`
                     : ""}`);
                 break;
@@ -62597,6 +62603,10 @@ const constructSlackMessage = async (github_adapter, pully_options, pullyRepodat
         if (change_requesters.size !== 0) {
             reviewStatusText += " | :github-changes-requested: " +
                 Array.from(change_requesters).join(", ");
+        }
+        if (commenters.size !== 0) {
+            reviewStatusText += " | :speech_balloon: " +
+                Array.from(commenters).join(", ");
         }
         if (review_requests.size !== 0) {
             reviewStatusText += " | :code-review: " +
@@ -62764,6 +62774,9 @@ const main = () => {
                     }
                     else if (value.state === "CHANGES_REQUESTED") {
                         reviewType = "requested-changes";
+                    }
+                    else if (value.state === "COMMENTED") {
+                        reviewType = "commented";
                     }
                     if (value.submitted_at === undefined) {
                         throw Error("Review submitted at was unexpectedly undefined!");
