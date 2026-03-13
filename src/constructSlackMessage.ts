@@ -170,7 +170,9 @@ export const constructSlackMessage = async (
 		leftHandSideText = `~${leftHandSideText}~`;
 	}
 
-	const slackMessage = `${prStatusSlackmoji} ${leftHandSideText}${reviewStatusText}`;
+	const slackMessage = reviewStatusText && pully_options.PULLY_REVIEW_STATUS_ON_NEW_LINE
+		? `${prStatusSlackmoji} ${leftHandSideText}\n${reviewStatusText.slice(" | ".length)}`
+		: `${prStatusSlackmoji} ${leftHandSideText}${reviewStatusText}`;
 
 	return slackMessage;
 };

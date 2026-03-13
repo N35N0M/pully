@@ -12,6 +12,7 @@ const pullyOptions: PullyOptions = {
 	PULLY_SLACK_TOKEN: "token",
 	PULLY_SLACK_CHANNEL: "channel",
 	PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: false,
+	PULLY_REVIEW_STATUS_ON_NEW_LINE: false,
 };
 
 const makeAdapter = (): GithubAdapter => ({
@@ -155,4 +156,35 @@ Deno.test("approval takes precedence over comment when reviewer approves then co
 	);
 
 	assertEquals(result, ":github-pr: <https://github.com/owner/repo/pull/7|[owner/repo]> My PR (#7)  by Alice | :github-approve: Bob ");
+});
+
+Deno.test("review status is on a second line when PULLY_REVIEW_STATUS_ON_NEW_LINE is set", async () => {
+	const prAuthor: AuthorInfo = { githubUsername: "alice", firstName: "Alice" };
+	const reviewer: AuthorInfo = { githubUsername: "bob", firstName: "Bob" };
+	const pullyDataWithReviewer: PullyData = { known_authors: [reviewer] };
+
+	const adapter: GithubAdapter = {
+		...makeAdapter(),
+		platform_methods: {
+			...makeAdapter().platform_methods,
+			getPrReviews: async () => [
+				{ author: reviewer, time: new Date(), state: "approved" as ReviewerState },
+			],
+		},
+	};
+
+	const result = await constructSlackMessage(
+		adapter,
+		{ ...pullyOptions, PULLY_REVIEW_STATUS_ON_NEW_LINE: true },
+		pullyDataWithReviewer,
+		prAuthor,
+		"My PR",
+		8,
+		"open",
+		"owner",
+		"repo",
+		"https://github.com/owner/repo/pull/8",
+	);
+
+	assertEquals(result, ":github-pr: <https://github.com/owner/repo/pull/8|[owner/repo]> My PR (#8)  by Alice\n:github-approve: Bob ");
 });

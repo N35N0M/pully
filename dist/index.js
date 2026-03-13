@@ -62627,7 +62627,9 @@ const constructSlackMessage = async (github_adapter, pully_options, pullyRepodat
     if (prState === "closed" || prState === "merged") {
         leftHandSideText = `~${leftHandSideText}~`;
     }
-    const slackMessage = `${prStatusSlackmoji} ${leftHandSideText}${reviewStatusText}`;
+    const slackMessage = reviewStatusText && pully_options.PULLY_REVIEW_STATUS_ON_NEW_LINE
+        ? `${prStatusSlackmoji} ${leftHandSideText}\n${reviewStatusText.slice(" | ".length)}`
+        : `${prStatusSlackmoji} ${leftHandSideText}${reviewStatusText}`;
     return slackMessage;
 };
 
@@ -62742,7 +62744,8 @@ const main = () => {
     const pullyOptions = {
         PULLY_SLACK_CHANNEL: PULLY_SLACK_CHANNEL,
         PULLY_SLACK_TOKEN: PULLY_SLACK_TOKEN,
-        PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: coreExports.getInput("PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE") !== ""
+        PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: coreExports.getInput("PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE") !== "",
+        PULLY_REVIEW_STATUS_ON_NEW_LINE: coreExports.getInput("PULLY_REVIEW_STATUS_ON_NEW_LINE") !== "",
     };
     const githubAdapter = {
         GITHUB_TOKEN: GITHUB_TOKEN,
