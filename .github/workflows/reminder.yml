@@ -1,0 +1,19 @@
+name: Pully reminder
+
+on:
+  schedule:
+    - cron: '* * * * *'  # Every minute
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    name: Post reminder on PRs awaiting review
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: N35N0M/pully@main
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PULLY_SLACK_CHANNEL: ${{ secrets.PULLY_SLACK_CHANNEL }}
+          PULLY_SLACK_TOKEN: ${{ secrets.PULLY_SLACK_TOKEN }}
