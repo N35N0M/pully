@@ -26,3 +26,4 @@ jobs:
           PULLY_SLACK_TOKEN: ${{ secrets.PULLY_SLACK_TOKEN }}
           PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: "Yes please"
           PR_DESCRIPTION_CONTENT_LENGTH: 100
+          PULLY_REVIEW_STATUS_ON_NEW_LINE: "such align wow"
