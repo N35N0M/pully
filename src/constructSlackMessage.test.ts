@@ -24,6 +24,9 @@ const makeAdapter = (): GithubAdapter => ({
 		getReviewsRequestedForPr: async () => [],
 		getExistingMessageTimestamp: async () => undefined,
 		updateSlackMessageTimestampForPr: async () => undefined,
+		addReminderTimestampForPr: async () => {},
+		getReminderTimestampsForPr: async () => [],
+		listOpenPrs: async () => [],
 		loadPullyUserConfig: async () => pullyData,
 	},
 });
