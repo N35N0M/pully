@@ -26,6 +26,7 @@ import { AuthorInfo } from "./AuthorInfo.ts";
 import { PrState } from "./PrState.ts";
 import { getAuthorInfoFromGithubLogin } from "./getAuthorInfoFromGithubLogin.ts";
 import { PrNumber } from "./PrNumber.ts";
+import { bumpExistingPrsWithoutReview } from "./bumpExistingPrsWithoutReview.ts";
 
 export type ReviewerState =
 	| "approved"
@@ -73,54 +74,6 @@ const postToSlack = async (
 	}
 };
 
-const postSlackThreadReply = async (
-	message: string,
-	threadTs: string,
-	pullyOptions: PullyOptions,
-): Promise<string | undefined> => {
-	const web = new WebClient(pullyOptions.PULLY_SLACK_TOKEN);
-	const result = await web.chat.postMessage({
-		text: message,
-		channel: pullyOptions.PULLY_SLACK_CHANNEL,
-		thread_ts: threadTs,
-	});
-	return result.ts;
-};
-
-const handleScheduled = async (
-	pullyUserConfig: PullyData,
-	github_adapter: GithubAdapter,
-	pully_options: PullyOptions,
-) => {
-	const openPrNumbers = await github_adapter.platform_methods.listOpenPrs();
-
-	for (const prNumber of openPrNumbers) {
-		const reviews = await github_adapter.platform_methods.getPrReviews(pullyUserConfig, prNumber);
-		const hasSignificantReview = reviews.some(
-			r => r.state === "approved" || r.state === "requested-changes"
-		);
-		if (hasSignificantReview) continue;
-
-		const existingTs = await github_adapter.platform_methods.getExistingMessageTimestamp(prNumber);
-		if (!existingTs) continue;
-
-		const reviewRequests = await github_adapter.platform_methods.getReviewsRequestedForPr(pullyUserConfig, prNumber);
-		let reminderMessage: string;
-		if (reviewRequests.length > 0) {
-			const mentions = reviewRequests
-				.map(r => r.slackMemberId ? `<@${r.slackMemberId}>` : r.githubUsername ?? r.firstName ?? "unknown")
-				.join(", ");
-			reminderMessage = `:code-review: Waiting for a review from ${mentions}`;
-		} else {
-			reminderMessage = `:code-review: This PR is still waiting for a review`;
-		}
-
-		const replyTs = await postSlackThreadReply(reminderMessage, existingTs, pully_options);
-		if (replyTs) {
-			await github_adapter.platform_methods.addReminderTimestampForPr(prNumber, replyTs);
-		}
-	}
-};
 
 const handlePullRequestReviewSubmitted = async (
 	pullyUserConfig: PullyData,
@@ -680,7 +633,16 @@ const main = () => {
 
 	githubAdapter.platform_methods.loadPullyUserConfig().then((repoData) => {
 		if (eventName === "schedule") {
-			handleScheduled(repoData, githubAdapter, pullyOptions);
+			bumpExistingPrsWithoutReview(repoData, githubAdapter, pullyOptions, async (message, threadTs) => {
+				const web = new WebClient(pullyOptions.PULLY_SLACK_TOKEN);
+				const result = await web.chat.postMessage({
+					text: message,
+					channel: pullyOptions.PULLY_SLACK_CHANNEL,
+					thread_ts: threadTs,
+					reply_broadcast: true,
+				});
+				return result.ts;
+			});
 			return;
 		}
 
