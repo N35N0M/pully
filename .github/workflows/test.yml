@@ -25,6 +25,8 @@ jobs:
         run: deno task build
       - name: Package code with rollup for fast CI execution times
         run: deno task package
+      - name: Format the repackaged package
+        run: deno fmt
       - name: Run tests
         run: deno test
       - name: Check that the prebuilt dist is up-to-date with the src
