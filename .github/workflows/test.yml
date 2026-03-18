@@ -19,6 +19,8 @@ jobs:
           cache: true
       - name: Install dependencies
         run: deno install --frozen
+      - name: Check format
+        run: deno fmt --check
       - name: Build code with tsc for typechecks
         run: deno task build
       - name: Package code with rollup for fast CI execution times
