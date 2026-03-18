@@ -2,9 +2,9 @@ name: Build and test pully source
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
@@ -19,10 +19,14 @@ jobs:
           cache: true
       - name: Install dependencies
         run: deno install --frozen
+      - name: Check format
+        run: deno fmt --check
       - name: Build code with tsc for typechecks
         run: deno task build
       - name: Package code with rollup for fast CI execution times
         run: deno task package
+      - name: Format the repackaged package
+        run: deno fmt
       - name: Run tests
         run: deno test
       - name: Check that the prebuilt dist is up-to-date with the src

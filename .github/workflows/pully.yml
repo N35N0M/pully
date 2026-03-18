@@ -1,17 +1,27 @@
 # Dogfooding
 on:
   pull_request:
-    types: [opened, reopened, closed, edited, review_requested, ready_for_review, auto_merge_enabled, auto_merge_disabled, converted_to_draft]
+    types: [
+      opened,
+      reopened,
+      closed,
+      edited,
+      review_requested,
+      ready_for_review,
+      auto_merge_enabled,
+      auto_merge_disabled,
+      converted_to_draft,
+    ]
   pull_request_review:
     types: [submitted]
   schedule:
-    - cron: '*/5 * * * *'  # Every 5 minutes
+    - cron: "*/5 * * * *" # Every 5 minutes
 
 concurrency:
- group: pully-${{github.event.pull_request.number}}
-  Github concurrency lacks some important functionality (max 1 pending job in the group is allowed)
-  So we just have to cancel old jobs and let the latest job for a PR do the heavy lifting
- cancel-in-progress: true 
+  group: pully-${{github.event.pull_request.number}}
+    Github concurrency lacks some important functionality (max 1 pending job in the group is allowed)
+    So we just have to cancel old jobs and let the latest job for a PR do the heavy lifting
+  cancel-in-progress: true
 
 jobs:
   run_pully:
@@ -21,7 +31,7 @@ jobs:
       contents: write
       pull-requests: read
     steps:
-      - uses: N35N0M/pully@0fa4be0845455da8afbac0debc106da794a6d9a9
+      - uses: N35N0M/pully@9e1f0dfa1e3916323d4a79d66917c3d3c4fa644a
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULLY_SLACK_CHANNEL: ${{ secrets.PULLY_SLACK_CHANNEL }}
@@ -30,4 +40,3 @@ jobs:
           PR_DESCRIPTION_CONTENT_LENGTH: 100
           PULLY_REVIEW_STATUS_ON_NEW_LINE: "such align wow"
           PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED: ":bongocat:"
-          
