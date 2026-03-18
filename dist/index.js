@@ -14125,7 +14125,7 @@ var followRedirects = { exports: {} };
 
 var src = { exports: {} };
 
-var browser$1 = { exports: {} };
+var browser = { exports: {} };
 
 /**
  * Helpers.
@@ -14613,11 +14613,11 @@ function requireCommon() {
 
 /* eslint-env browser */
 
-var hasRequiredBrowser$1;
+var hasRequiredBrowser;
 
-function requireBrowser$1() {
-  if (hasRequiredBrowser$1) return browser$1.exports;
-  hasRequiredBrowser$1 = 1;
+function requireBrowser() {
+  if (hasRequiredBrowser) return browser.exports;
+  hasRequiredBrowser = 1;
   (function (module, exports) {
     /**
      * This is the web browser implementation of `debug()`.
@@ -14905,48 +14905,11 @@ function requireBrowser$1() {
         return "[UnexpectedJSONParseError]: " + error.message;
       }
     };
-  })(browser$1, browser$1.exports);
-  return browser$1.exports;
+  })(browser, browser.exports);
+  return browser.exports;
 }
 
 var node = { exports: {} };
-
-/* eslint-env browser */
-
-var browser;
-var hasRequiredBrowser;
-
-function requireBrowser() {
-  if (hasRequiredBrowser) return browser;
-  hasRequiredBrowser = 1;
-
-  function getChromeVersion() {
-    const matches = /(Chrome|Chromium)\/(?<chromeVersion>\d+)\./.exec(
-      navigator.userAgent,
-    );
-
-    if (!matches) {
-      return;
-    }
-
-    return Number.parseInt(matches.groups.chromeVersion, 10);
-  }
-
-  const colorSupport = getChromeVersion() >= 69
-    ? {
-      level: 1,
-      hasBasic: true,
-      has256: false,
-      has16m: false,
-    }
-    : false;
-
-  browser = {
-    stdout: colorSupport,
-    stderr: colorSupport,
-  };
-  return browser;
-}
 
 /**
  * Module dependencies.
@@ -14985,7 +14948,7 @@ function requireNode() {
     try {
       // Optional dependency (as in, doesn't need to be installed, NOT like optionalDependencies in package.json)
       // eslint-disable-next-line import/no-extraneous-dependencies
-      const supportsColor = requireBrowser();
+      const supportsColor = require("supports-color");
 
       if (supportsColor && (supportsColor.stderr || supportsColor).level >= 2) {
         exports.colors = [
@@ -15239,7 +15202,7 @@ function requireSrc() {
     typeof process === "undefined" || process.type === "renderer" ||
     process.browser === true || process.__nwjs
   ) {
-    src.exports = requireBrowser$1();
+    src.exports = requireBrowser();
   } else {
     src.exports = requireNode();
   }
