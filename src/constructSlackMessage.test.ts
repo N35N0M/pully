@@ -20,6 +20,7 @@ const makeAdapter = (): GithubAdapter => ({
 	GITHUB_REPOSITORY: "repo",
 	GITHUB_REPOSITORY_OWNER: "owner",
 	platform_methods: {
+		getPrTitle: async () => "My feature",
 		getPrReviews: async () => [],
 		getReviewsRequestedForPr: async () => [],
 		getExistingMessageTimestamp: async () => undefined,

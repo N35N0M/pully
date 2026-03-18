@@ -1,6 +1,7 @@
 import { GithubAdapter } from "./GithubAdapter.ts";
 import { PullyData } from "./PullyData.ts";
 import { PullyOptions } from "./PullyOptions.ts";
+import { isTitleDraft } from "./isTitleDraft.ts";
 
 export const REMINDER_MESSAGES: Array<(mentions?: string) => string> = [
 	(mentions) => mentions ? `:code-review: Waiting for a review from ${mentions}` : `:egg: Bump #1! Please review with a resulting approve or change request <3`,
@@ -19,6 +20,9 @@ export const bumpExistingPrsWithoutReview = async (
 	const openPrNumbers = await github_adapter.platform_methods.listOpenPrs();
 
 	for (const prNumber of openPrNumbers) {
+		const title = await github_adapter.platform_methods.getPrTitle(prNumber);
+		if (isTitleDraft(title)) continue;
+
 		const reviews = await github_adapter.platform_methods.getPrReviews(pullyUserConfig, prNumber);
 		const hasSignificantReview = reviews.some(
 			r => r.state === "approved" || r.state === "requested-changes"

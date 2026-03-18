@@ -62633,6 +62633,9 @@ const constructSlackMessage = async (github_adapter, pully_options, pullyRepodat
     return slackMessage;
 };
 
+const WIP_DRAFT_TITLE_RE = /^(\[?(WIP|DRAFT)\]?[\s\-:]+)/i;
+const isTitleDraft = (title) => WIP_DRAFT_TITLE_RE.test(title);
+
 const REMINDER_MESSAGES = [
     (mentions) => mentions ? `:code-review: Waiting for a review from ${mentions}` : `:egg: Bump #1! Please review with a resulting approve or change request <3`,
     (mentions) => mentions ? `:code-review: Friendly reminder - still waiting for a review from ${mentions}` : `:hatching_chick: Bump #2! Pleeeeease review with a resulting approve or change request <3`,
@@ -62643,6 +62646,9 @@ const REMINDER_MESSAGES = [
 const bumpExistingPrsWithoutReview = async (pullyUserConfig, github_adapter, _pully_options, postReply) => {
     const openPrNumbers = await github_adapter.platform_methods.listOpenPrs();
     for (const prNumber of openPrNumbers) {
+        const title = await github_adapter.platform_methods.getPrTitle(prNumber);
+        if (isTitleDraft(title))
+            continue;
         const reviews = await github_adapter.platform_methods.getPrReviews(pullyUserConfig, prNumber);
         const hasSignificantReview = reviews.some(r => r.state === "approved" || r.state === "requested-changes");
         if (hasSignificantReview)
@@ -62668,9 +62674,6 @@ const bumpExistingPrsWithoutReview = async (pullyUserConfig, github_adapter, _pu
         }
     }
 };
-
-const WIP_DRAFT_TITLE_RE = /^(\[?(WIP|DRAFT)\]?[\s\-:]+)/i;
-const isTitleDraft = (title) => WIP_DRAFT_TITLE_RE.test(title);
 
 const deleteRemindersOnSignificantReview = async (reviewState, prNumber, platformMethods, deleteMessages) => {
     const isSignificant = reviewState === "approved" || reviewState === "changes_requested";
@@ -63008,6 +63011,15 @@ const main = () => {
                     sha,
                     headers: { "X-GitHub-Api-Version": "2022-11-28" },
                 });
+            },
+            getPrTitle: async (prNumber) => {
+                const octokit = new Octokit$1({ auth: GITHUB_TOKEN });
+                const pr = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
+                    owner: GITHUB_REPOSITORY_OWNER,
+                    repo: GITHUB_REPOSITORY,
+                    pull_number: prNumber,
+                });
+                return pr.data.title;
             },
             listOpenPrs: async () => {
                 const octokit = new Octokit$1({ auth: GITHUB_TOKEN });

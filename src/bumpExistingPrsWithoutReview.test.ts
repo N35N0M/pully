@@ -23,6 +23,7 @@ const makeAdapter = (overrides: Partial<GithubAdapter["platform_methods"]> = {})
 	GITHUB_REPOSITORY_OWNER: "owner",
 	platform_methods: {
 		listOpenPrs: async () => [1],
+		getPrTitle: async () => "My feature",
 		getPrReviews: async () => [],
 		getReviewsRequestedForPr: async () => [],
 		getExistingMessageTimestamp: async () => "1000000000.000000",
@@ -33,6 +34,15 @@ const makeAdapter = (overrides: Partial<GithubAdapter["platform_methods"]> = {})
 		loadPullyUserConfig: async () => pullyData,
 		...overrides,
 	},
+});
+
+Deno.test("skips PR with a WIP title", async () => {
+	let posted = false;
+	await bumpExistingPrsWithoutReview(pullyData, makeAdapter({
+		getPrTitle: async () => "WIP: my feature",
+	}), pullyOptions, async () => { posted = true; return undefined; });
+
+	assertEquals(posted, false);
 });
 
 Deno.test("skips PR when it has an approval", async () => {
