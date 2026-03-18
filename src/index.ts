@@ -28,6 +28,7 @@ import { getAuthorInfoFromGithubLogin } from "./getAuthorInfoFromGithubLogin.ts"
 import { PrNumber } from "./PrNumber.ts";
 import { bumpExistingPrsWithoutReview } from "./bumpExistingPrsWithoutReview.ts";
 import { isTitleDraft } from "./isTitleDraft.ts";
+import { deleteRemindersOnSignificantReview } from "./deleteRemindersOnSignificantReview.ts";
 
 export type ReviewerState =
 	| "approved"
@@ -99,6 +100,13 @@ const handlePullRequestReviewSubmitted = async (
 	} else if (prData.draft || isTitleDraft(prData.title)) {
 		prStatus = "draft";
 	}
+
+	await deleteRemindersOnSignificantReview(
+		payload.review.state,
+		prData.number,
+		github_adapter.platform_methods,
+		(timestamps) => deleteSlackMessages(timestamps, pully_options),
+	);
 
 	const slackMessage = await constructSlackMessage(
 		github_adapter,
@@ -270,6 +278,7 @@ const handlePullRequestReadyForReview = async (
 	);
 };
 
+
 const deleteSlackMessages = async (timestamps: string[], pullyOptions: PullyOptions) => {
 	const web = new WebClient(pullyOptions.PULLY_SLACK_TOKEN);
 	for (const ts of timestamps) {
@@ -295,6 +304,7 @@ const handlePullRequestClosed = async (
 
 	const reminderTimestamps = await github_adapter.platform_methods.getReminderTimestampsForPr(payload.pull_request.number);
 	await deleteSlackMessages(reminderTimestamps, pully_options);
+	await github_adapter.platform_methods.clearReminderTimestampsForPr(payload.pull_request.number);
 };
 
 
@@ -331,6 +341,8 @@ export interface PlatformMethods {
 	addReminderTimestampForPr: (prNumber: number, timestamp: string) => Promise<void>;
 
 	getReminderTimestampsForPr: (prNumber: number) => Promise<string[]>;
+
+	clearReminderTimestampsForPr: (prNumber: number) => Promise<void>;
 
 	loadPullyUserConfig: () => Promise<PullyData>;
 
@@ -593,6 +605,36 @@ const main = () => {
 					return [];
 				}
 			},
+		clearReminderTimestampsForPr: async (prNumber) => {
+			const octokit = new Octokit({ auth: GITHUB_TOKEN });
+			const pullybranch = 'pullystate';
+			const messagePath =
+				`messages/${githubAdapter.GITHUB_REPOSITORY_OWNER}_${githubAdapter.GITHUB_REPOSITORY}_${prNumber}.timestamp`;
+			const fileResponse = await octokit.request(
+				"GET /repos/{owner}/{repo}/contents/{path}",
+				{
+					repo: githubAdapter.GITHUB_REPOSITORY,
+					owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
+					path: messagePath,
+					ref: `refs/heads/${pullybranch}`,
+				},
+			);
+			// @ts-expect-error need to assert that this is a file somehow
+			const currentContent: { timestamp: string; reminderTimestamps?: string[] } = JSON.parse(atob(fileResponse.data.content));
+			// @ts-expect-error
+			const sha: string = fileResponse.data.sha;
+			await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
+				owner: githubAdapter.GITHUB_REPOSITORY_OWNER,
+				repo: githubAdapter.GITHUB_REPOSITORY,
+				path: messagePath,
+				branch: `refs/heads/${pullybranch}`,
+				message: "Pully state update - clear reminders",
+				committer: { name: "Pully", email: "kris@bitheim.no" },
+				content: btoa(JSON.stringify({ ...currentContent, reminderTimestamps: [] })),
+				sha,
+				headers: { "X-GitHub-Api-Version": "2022-11-28" },
+			});
+		},
 		listOpenPrs: async () => {
 				const octokit = new Octokit({ auth: GITHUB_TOKEN });
 				const prs = await octokit.request("GET /repos/{owner}/{repo}/pulls", {
