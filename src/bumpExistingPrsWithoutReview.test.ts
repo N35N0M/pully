@@ -28,6 +28,7 @@ const makeAdapter = (overrides: Partial<GithubAdapter["platform_methods"]> = {})
 		getExistingMessageTimestamp: async () => "1000000000.000000",
 		getReminderTimestampsForPr: async () => [],
 		addReminderTimestampForPr: async () => {},
+		clearReminderTimestampsForPr: async () => {},
 		updateSlackMessageTimestampForPr: async () => undefined,
 		loadPullyUserConfig: async () => pullyData,
 		...overrides,
