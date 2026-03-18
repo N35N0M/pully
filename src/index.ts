@@ -27,6 +27,7 @@ import { PrState } from "./PrState.ts";
 import { getAuthorInfoFromGithubLogin } from "./getAuthorInfoFromGithubLogin.ts";
 import { PrNumber } from "./PrNumber.ts";
 import { bumpExistingPrsWithoutReview } from "./bumpExistingPrsWithoutReview.ts";
+import { isTitleDraft } from "./isTitleDraft.ts";
 
 export type ReviewerState =
 	| "approved"
@@ -95,7 +96,7 @@ const handlePullRequestReviewSubmitted = async (
 		prStatus = "closed";
 	} else if (!!prData.merged_at) {
 		prStatus = "merged";
-	} else if (prData.draft) {
+	} else if (prData.draft || isTitleDraft(prData.title)) {
 		prStatus = "draft";
 	}
 
@@ -157,7 +158,7 @@ const handlePullRequestGeneric = async (
 		prStatus = "closed";
 	} else if (!!prData.merged) {
 		prStatus = "merged";
-	} else if (prData.draft) {
+	} else if (prData.draft || isTitleDraft(prData.title)) {
 		prStatus = "draft";
 	}
 

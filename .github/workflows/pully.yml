@@ -1,9 +1,11 @@
 # Dogfooding
 on:
- pull_request:
-   types: [opened, reopened, closed, edited, review_requested, ready_for_review, auto_merge_enabled, auto_merge_disabled, converted_to_draft]
- pull_request_review:
-   types: [submitted]
+  pull_request:
+    types: [opened, reopened, closed, edited, review_requested, ready_for_review, auto_merge_enabled, auto_merge_disabled, converted_to_draft]
+  pull_request_review:
+    types: [submitted]
+  schedule:
+    - cron: '*/5 * * * *'  # Every 5 minutes
 
 concurrency:
  group: pully-${{github.event.pull_request.number}}
@@ -19,7 +21,7 @@ jobs:
       contents: write
       pull-requests: read
     steps:
-      - uses: N35N0M/pully@512c31f20109066a1d9a5912b3187a68e1ddfe7b
+      - uses: N35N0M/pully@f6a0de643e64c6ff83489bd96124b1817989db89
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PULLY_SLACK_CHANNEL: ${{ secrets.PULLY_SLACK_CHANNEL }}
