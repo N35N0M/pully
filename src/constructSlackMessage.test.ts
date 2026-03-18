@@ -13,6 +13,7 @@ const pullyOptions: PullyOptions = {
 	PULLY_SLACK_CHANNEL: "channel",
 	PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: false,
 	PULLY_REVIEW_STATUS_ON_NEW_LINE: false,
+	PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED: false,
 };
 
 const makeAdapter = (): GithubAdapter => ({
@@ -161,6 +162,99 @@ Deno.test("approval takes precedence over comment when reviewer approves then co
 	);
 
 	assertEquals(result, ":github-pr: <https://github.com/owner/repo/pull/7|[owner/repo]> My PR (#7)  by Alice | :github-approve: Bob ");
+});
+
+Deno.test("hides review line on closed PR when PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED is set", async () => {
+	const prAuthor: AuthorInfo = { githubUsername: "alice", firstName: "Alice" };
+	const reviewer: AuthorInfo = { githubUsername: "bob", firstName: "Bob" };
+	const pullyDataWithReviewer: PullyData = { known_authors: [reviewer] };
+
+	const adapter: GithubAdapter = {
+		...makeAdapter(),
+		platform_methods: {
+			...makeAdapter().platform_methods,
+			getPrReviews: async () => [
+				{ author: reviewer, time: new Date(), state: "approved" as ReviewerState },
+			],
+		},
+	};
+
+	const result = await constructSlackMessage(
+		adapter,
+		{ ...pullyOptions, PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED: true },
+		pullyDataWithReviewer,
+		prAuthor,
+		"My PR",
+		9,
+		"closed",
+		"owner",
+		"repo",
+		"https://github.com/owner/repo/pull/9",
+	);
+
+	assertEquals(result, ":github-closed: ~<https://github.com/owner/repo/pull/9|[owner/repo]> My PR (#9)  by Alice~");
+});
+
+Deno.test("hides review line on merged PR when PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED is set", async () => {
+	const prAuthor: AuthorInfo = { githubUsername: "alice", firstName: "Alice" };
+	const reviewer: AuthorInfo = { githubUsername: "bob", firstName: "Bob" };
+	const pullyDataWithReviewer: PullyData = { known_authors: [reviewer] };
+
+	const adapter: GithubAdapter = {
+		...makeAdapter(),
+		platform_methods: {
+			...makeAdapter().platform_methods,
+			getPrReviews: async () => [
+				{ author: reviewer, time: new Date(), state: "approved" as ReviewerState },
+			],
+		},
+	};
+
+	const result = await constructSlackMessage(
+		adapter,
+		{ ...pullyOptions, PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED: true },
+		pullyDataWithReviewer,
+		prAuthor,
+		"My PR",
+		10,
+		"merged",
+		"owner",
+		"repo",
+		"https://github.com/owner/repo/pull/10",
+	);
+
+	assertEquals(result, ":github-merged: ~<https://github.com/owner/repo/pull/10|[owner/repo]> My PR (#10)  by Alice~");
+});
+
+Deno.test("still shows review line on open PR when PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED is set", async () => {
+	const prAuthor: AuthorInfo = { githubUsername: "alice", firstName: "Alice" };
+	const reviewer: AuthorInfo = { githubUsername: "bob", firstName: "Bob" };
+	const pullyDataWithReviewer: PullyData = { known_authors: [reviewer] };
+
+	const adapter: GithubAdapter = {
+		...makeAdapter(),
+		platform_methods: {
+			...makeAdapter().platform_methods,
+			getPrReviews: async () => [
+				{ author: reviewer, time: new Date(), state: "approved" as ReviewerState },
+			],
+		},
+	};
+
+	const result = await constructSlackMessage(
+		adapter,
+		{ ...pullyOptions, PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED: true },
+		pullyDataWithReviewer,
+		prAuthor,
+		"My PR",
+		11,
+		"open",
+		"owner",
+		"repo",
+		"https://github.com/owner/repo/pull/11",
+	);
+
+	assertEquals(result, ":github-pr: <https://github.com/owner/repo/pull/11|[owner/repo]> My PR (#11)  by Alice | :github-approve: Bob ");
 });
 
 Deno.test("review status is on a second line when PULLY_REVIEW_STATUS_ON_NEW_LINE is set", async () => {

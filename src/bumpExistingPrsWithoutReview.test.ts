@@ -12,6 +12,7 @@ const pullyOptions: PullyOptions = {
 	PULLY_SLACK_CHANNEL: "channel",
 	PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: false,
 	PULLY_REVIEW_STATUS_ON_NEW_LINE: false,
+	PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED: false,
 };
 
 const todayTs = `${Math.floor(Date.now() / 1000)}.000000`;
