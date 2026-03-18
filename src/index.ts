@@ -344,6 +344,8 @@ export interface PlatformMethods {
 
 	clearReminderTimestampsForPr: (prNumber: number) => Promise<void>;
 
+	getPrTitle: (prNumber: number) => Promise<string>;
+
 	loadPullyUserConfig: () => Promise<PullyData>;
 
 	listOpenPrs: () => Promise<PrNumber[]>;
@@ -634,6 +636,15 @@ const main = () => {
 				sha,
 				headers: { "X-GitHub-Api-Version": "2022-11-28" },
 			});
+		},
+		getPrTitle: async (prNumber) => {
+			const octokit = new Octokit({ auth: GITHUB_TOKEN });
+			const pr = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
+				owner: GITHUB_REPOSITORY_OWNER,
+				repo: GITHUB_REPOSITORY,
+				pull_number: prNumber,
+			});
+			return pr.data.title;
 		},
 		listOpenPrs: async () => {
 				const octokit = new Octokit({ auth: GITHUB_TOKEN });
