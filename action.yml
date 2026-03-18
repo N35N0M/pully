@@ -25,7 +25,10 @@ inputs:
     description: The max length of the content of everything before the | <review states> part of the slack message
     required: false
     default: "100"
+  PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED:
+    description: If set to any value that is not the empty string, it will hide review statuses when the PR is merged or closed
+    required: false
 
 runs:
-  using: "node20"
+  using: "node24"
   main: dist/index.js
