@@ -68269,7 +68269,8 @@ const main = () => {
           },
         );
         // @ts-expect-error need to assert that this is a file somehow
-        const currentContent = JSON.parse(atob(fileResponse.data.content));
+        const uncheckedContent = fileResponse.data.content;
+        const currentContent = JSON.parse(atob(uncheckedContent));
         // @ts-expect-error
         const sha = fileResponse.data.sha;
         await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
@@ -68306,7 +68307,8 @@ const main = () => {
             },
           );
           // @ts-expect-error need to assert that this is a file somehow
-          const content = JSON.parse(atob(fileResponse.data.content));
+          const uncheckedContent = fileResponse.data.content;
+          const content = JSON.parse(atob(uncheckedContent));
           return content.reminderTimestamps ?? [];
         } catch (e) {
           coreExports.info(
@@ -68330,7 +68332,8 @@ const main = () => {
           },
         );
         // @ts-expect-error need to assert that this is a file somehow
-        const currentContent = JSON.parse(atob(fileResponse.data.content));
+        const uncheckedContent = fileResponse.data.content;
+        const currentContent = JSON.parse(atob(uncheckedContent));
         // @ts-expect-error
         const sha = fileResponse.data.sha;
         await octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
