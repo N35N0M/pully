@@ -15,7 +15,6 @@ const pullyOptions: PullyOptions = {
 	PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED: false,
 };
 
-const todayTs = `${Math.floor(Date.now() / 1000)}.000000`;
 const yesterdayTs = `${Math.floor((Date.now() - 86_400_000) / 1000)}.000000`;
 
 const makeAdapter = (overrides: Partial<GithubAdapter["platform_methods"]> = {}): GithubAdapter => ({
@@ -82,14 +81,6 @@ Deno.test("skips PR when 5 reminders already sent", async () => {
 	assertEquals(posted, false);
 });
 
-Deno.test("skips PR when reminder already sent today", async () => {
-	let posted = false;
-	await bumpExistingPrsWithoutReview(pullyData, makeAdapter({
-		getReminderTimestampsForPr: async () => [todayTs],
-	}), pullyOptions, async () => { posted = true; return undefined; });
-
-	assertEquals(posted, false);
-});
 
 Deno.test("sends first reminder when no prior reminders", async () => {
 	let sentMessage = "";

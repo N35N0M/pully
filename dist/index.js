@@ -62661,10 +62661,6 @@ const bumpExistingPrsWithoutReview = async (pullyUserConfig, github_adapter, _pu
         const reminderTimestamps = await github_adapter.platform_methods.getReminderTimestampsForPr(prNumber);
         if (reminderTimestamps.length >= 5)
             continue;
-        const today = new Date().toDateString();
-        const alreadySentToday = reminderTimestamps.some(ts => new Date(parseFloat(ts) * 1000).toDateString() === today);
-        if (alreadySentToday)
-            continue;
         const reviewRequests = await github_adapter.platform_methods.getReviewsRequestedForPr(pullyUserConfig, prNumber);
         const mentions = reviewRequests.length > 0
             ? reviewRequests.map(r => r.slackMemberId ? `<@${r.slackMemberId}>` : r.githubUsername ?? r.firstName ?? "unknown").join(", ")
