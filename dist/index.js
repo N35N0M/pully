@@ -62600,12 +62600,14 @@ const constructSlackMessage = async (github_adapter, pully_options, pullyRepodat
                 review_requests.add(reviewerData.slackMemberId ? `<@${reviewerData.slackMemberId}>` : `${reviewerData.githubUsername}`);
         }
     }
+    const prIsClosed = prState === "closed" || prState === "merged";
+    const hideReviews = prIsClosed && pully_options.PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED;
     let reviewStatusText = "";
-    if (approvers.size !== 0) {
+    if (!hideReviews && approvers.size !== 0) {
         reviewStatusText += " | :github-approve: " +
             Array.from(approvers).join(", ");
     }
-    if (prState === "open") {
+    if (!hideReviews && prState === "open") {
         if (change_requesters.size !== 0) {
             reviewStatusText += " | :github-changes-requested: " +
                 Array.from(change_requesters).join(", ");
@@ -62807,6 +62809,7 @@ const main = () => {
         PULLY_SLACK_TOKEN: PULLY_SLACK_TOKEN,
         PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE: coreExports.getInput("PULLY_HIDE_REPOSITORY_OWNER_IN_SLACK_MESSAGE") !== "",
         PULLY_REVIEW_STATUS_ON_NEW_LINE: coreExports.getInput("PULLY_REVIEW_STATUS_ON_NEW_LINE") !== "",
+        PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED: coreExports.getInput("PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED") !== "",
     };
     const githubAdapter = {
         GITHUB_TOKEN: GITHUB_TOKEN,

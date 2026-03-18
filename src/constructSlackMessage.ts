@@ -136,13 +136,16 @@ export const constructSlackMessage = async (
 		}
 	}
 
+	const prIsClosed = prState === "closed" || prState === "merged";
+	const hideReviews = prIsClosed && pully_options.PULLY_HIDE_REVIEWS_WHEN_PR_CLOSED;
+
 	let reviewStatusText = "";
-	if (approvers.size !== 0) {
+	if (!hideReviews && approvers.size !== 0) {
 		reviewStatusText += " | :github-approve: " +
 			Array.from(approvers).join(", ");
 	}
 
-	if (prState === "open") {
+	if (!hideReviews && prState === "open") {
 		if (change_requesters.size !== 0) {
 			reviewStatusText += " | :github-changes-requested: " +
 				Array.from(change_requesters).join(", ");
