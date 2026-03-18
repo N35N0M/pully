@@ -13,7 +13,12 @@ import type {
   PullRequestReviewRequestedEvent,
   PullRequestReviewSubmittedEvent,
 } from "@octokit/webhooks-types";
-import { WebClient } from "@slack/web-api";
+import {
+  chatDelete,
+  chatPostMessage,
+  chatPostMessageInThread,
+  chatUpdate,
+} from "./slackClient.ts";
 import assert from "node:assert";
 import { Octokit, RequestError } from "octokit";
 import * as core from "@actions/core";
@@ -48,8 +53,6 @@ const postToSlack = async (
   const postingInitialDraftsRequested =
     core.getInput("POST_INITIAL_DRAFT") !== "";
 
-  const web = new WebClient(pullyOptions.PULLY_SLACK_TOKEN);
-
   let existingMessageTimestamp: string | undefined = await githubAdapter
     .platform_methods.getExistingMessageTimestamp(prNumber);
 
@@ -60,20 +63,22 @@ const postToSlack = async (
   }
 
   if (existingMessageTimestamp) {
-    web.chat.update({
-      text: slackMessageContent,
-      channel: pullyOptions.PULLY_SLACK_CHANNEL,
-      ts: existingMessageTimestamp,
-    });
+    chatUpdate(
+      pullyOptions.PULLY_SLACK_TOKEN,
+      pullyOptions.PULLY_SLACK_CHANNEL,
+      existingMessageTimestamp,
+      slackMessageContent,
+    );
   } else {
-    const value = await web.chat.postMessage({
-      text: slackMessageContent,
-      channel: pullyOptions.PULLY_SLACK_CHANNEL,
-    });
-    if (value.ts) {
+    const ts = await chatPostMessage(
+      pullyOptions.PULLY_SLACK_TOKEN,
+      pullyOptions.PULLY_SLACK_CHANNEL,
+      slackMessageContent,
+    );
+    if (ts) {
       await githubAdapter.platform_methods.updateSlackMessageTimestampForPr(
         prNumber,
-        value.ts,
+        ts,
       );
     }
   }
@@ -284,9 +289,12 @@ const deleteSlackMessages = async (
   timestamps: string[],
   pullyOptions: PullyOptions,
 ) => {
-  const web = new WebClient(pullyOptions.PULLY_SLACK_TOKEN);
   for (const ts of timestamps) {
-    await web.chat.delete({ channel: pullyOptions.PULLY_SLACK_CHANNEL, ts });
+    await chatDelete(
+      pullyOptions.PULLY_SLACK_TOKEN,
+      pullyOptions.PULLY_SLACK_CHANNEL,
+      ts,
+    );
   }
 };
 
@@ -746,14 +754,12 @@ const main = () => {
         githubAdapter,
         pullyOptions,
         async (message, threadTs) => {
-          const web = new WebClient(pullyOptions.PULLY_SLACK_TOKEN);
-          const result = await web.chat.postMessage({
-            text: message,
-            channel: pullyOptions.PULLY_SLACK_CHANNEL,
-            thread_ts: threadTs,
-            reply_broadcast: true,
-          });
-          return result.ts;
+          return chatPostMessageInThread(
+            pullyOptions.PULLY_SLACK_TOKEN,
+            pullyOptions.PULLY_SLACK_CHANNEL,
+            message,
+            threadTs,
+          );
         },
       );
       return;
