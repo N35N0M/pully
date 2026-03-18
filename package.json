@@ -27,14 +27,12 @@
     "@actions/github": "^6.0.1",
     "@rollup/plugin-commonjs": "^28.0.6",
     "@rollup/plugin-node-resolve": "^16.0.1",
-    "@slack/web-api": "^7.9.3",
     "octokit": "^5.0.3"
   },
   "devDependencies": {
     "@octokit/webhooks-types": "^7.6.1",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-typescript": "^12.1.4",
-    "@slack/types": "^2.15.0",
     "@types/node": "^24.2.1",
     "rollup": "^4.50.0"
   }
