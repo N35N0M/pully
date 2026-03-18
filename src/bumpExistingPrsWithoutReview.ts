@@ -6,7 +6,7 @@ import { isTitleDraft } from "./isTitleDraft.ts";
 export const REMINDER_MESSAGES: Array<(mentions?: string) => string> = [
 	(mentions) => mentions ? `:code-review: Waiting for a review from ${mentions}` : `:egg: Bump #1! Please review with a resulting approve or change request <3`,
 	(mentions) => mentions ? `:code-review: Friendly reminder - still waiting for a review from ${mentions}` : `:hatching_chick: Bump #2! Pleeeeease review with a resulting approve or change request <3`,
-	(mentions) => mentions ? `:code-review: This PR has been waiting a somechangethatshouldbereverted while - a review from ${mentions} would be appreciated` : `:hatched_chick: Pretty pleeeeeeease?`,
+	(mentions) => mentions ? `:code-review: This PR has been waiting a while - a review from ${mentions} would be appreciated` : `:hatched_chick: Pretty pleeeeeeease?`,
 	(mentions) => mentions ? `:code-review: This PR is ready to take out of the oven ${mentions}` : `:chicken: Pretty pretty please with sugar on top?`,
 	(mentions) => mentions ? `:code-review: This PR has been sizzling and is now ready for ${mentions}!` : `:poultry_leg: Final reminder, is the PR stale and should be closed?`,
 ];
