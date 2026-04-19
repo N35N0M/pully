@@ -8,7 +8,8 @@
     "npm:@octokit/webhooks-types@^7.6.1": "7.6.1",
     "npm:@types/node@^24.2.1": "24.5.2",
     "npm:octokit@^5.0.3": "5.0.3_@octokit+core@7.0.4",
-    "npm:rolldown@^1.0.0-rc.10": "1.0.0-rc.10"
+    "npm:rolldown@^1.0.0-rc.10": "1.0.0-rc.10",
+    "npm:typescript@^6.0.3": "6.0.3"
   },
   "jsr": {
     "@std/assert@1.0.14": {
@@ -539,6 +540,10 @@
     "tunnel@0.0.6": {
       "integrity": "sha512-1h/Lnq9yajKY2PEbBadPXj3VxsDDu844OnaAo52UVmIzIvwwtBPIuNvkjuzBlTWpfJyUbG3ez0KSBibQkj4ojg=="
     },
+    "typescript@6.0.3": {
+      "integrity": "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==",
+      "bin": true
+    },
     "undici-types@7.12.0": {
       "integrity": "sha512-goOacqME2GYyOZZfb5Lgtu+1IDmAlAEu5xnD3+xTzS10hT0vzpf0SPjkXwAw9Jm+4n/mQGDP3LO8CPbYROeBfQ=="
     },
@@ -569,7 +574,8 @@
         "npm:@octokit/webhooks-types@^7.6.1",
         "npm:@types/node@^24.2.1",
         "npm:octokit@^5.0.3",
-        "npm:rolldown@^1.0.0-rc.10"
+        "npm:rolldown@^1.0.0-rc.10",
+        "npm:typescript@^6.0.3"
       ]
     }
   }

@@ -37,6 +37,7 @@ const makeAdapter = (
     clearReminderTimestampsForPr: async () => {},
     updateSlackMessageTimestampForPr: async () => undefined,
     loadPullyUserConfig: async () => pullyData,
+    isPrDraft: () => Promise.resolve(true),
     ...overrides,
   },
 });
