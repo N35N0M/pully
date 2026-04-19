@@ -31,7 +31,7 @@ const makeAdapter = (): GithubAdapter => ({
     clearReminderTimestampsForPr: async () => {},
     listOpenPrs: async () => [],
     loadPullyUserConfig: async () => pullyData,
-    isPrDraft: () => Promise.resolve(true)
+    isPrDraft: () => Promise.resolve(true),
   },
 });
 

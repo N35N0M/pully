@@ -38,7 +38,6 @@ export const bumpExistingPrsWithoutReview = async (
     const title = await github_adapter.platform_methods.getPrTitle(prNumber);
     if (isTitleDraft(title)) continue;
     if (await github_adapter.platform_methods.isPrDraft(prNumber)) continue;
-    
 
     const reviews = await github_adapter.platform_methods.getPrReviews(
       pullyUserConfig,
