@@ -6,6 +6,7 @@
 
 # Pully
 
+
 Get an overview of PR statuses in slack in a high-paced environment.
 
 This is a CI job that constantly updates one minimal slack message in a single
