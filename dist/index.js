@@ -25715,6 +25715,7 @@ const bumpExistingPrsWithoutReview = async (pullyUserConfig, github_adapter, _pu
 	const openPrNumbers = await github_adapter.platform_methods.listOpenPrs();
 	for (const prNumber of openPrNumbers) {
 		if (isTitleDraft(await github_adapter.platform_methods.getPrTitle(prNumber))) continue;
+		if (await github_adapter.platform_methods.isPrDraft(prNumber)) continue;
 		if ((await github_adapter.platform_methods.getPrReviews(pullyUserConfig, prNumber)).some((r) => r.state === "approved" || r.state === "requested-changes")) continue;
 		const existingTs = await github_adapter.platform_methods.getExistingMessageTimestamp(prNumber);
 		if (!existingTs) continue;
@@ -26007,6 +26008,13 @@ const main = () => {
 					repo: GITHUB_REPOSITORY,
 					pull_number: prNumber
 				})).data.title;
+			},
+			isPrDraft: async (prNumber) => {
+				return (await new Octokit({ auth: GITHUB_TOKEN }).request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
+					owner: GITHUB_REPOSITORY_OWNER,
+					repo: GITHUB_REPOSITORY,
+					pull_number: prNumber
+				})).data.draft ?? false;
 			},
 			listOpenPrs: async () => {
 				return (await new Octokit({ auth: GITHUB_TOKEN }).request("GET /repos/{owner}/{repo}/pulls", {
