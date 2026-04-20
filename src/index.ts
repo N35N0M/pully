@@ -374,6 +374,8 @@ export interface PlatformMethods {
   loadPullyUserConfig: () => Promise<PullyData>;
 
   listOpenPrs: () => Promise<PrNumber[]>;
+
+  isPrDraft: (prNumber: number) => Promise<boolean>;
 }
 
 const main = () => {
@@ -710,6 +712,18 @@ const main = () => {
           },
         );
         return pr.data.title;
+      },
+      isPrDraft: async (prNumber) => {
+        const octokit = new Octokit({ auth: GITHUB_TOKEN });
+        const pr = await octokit.request(
+          "GET /repos/{owner}/{repo}/pulls/{pull_number}",
+          {
+            owner: GITHUB_REPOSITORY_OWNER,
+            repo: GITHUB_REPOSITORY,
+            pull_number: prNumber,
+          },
+        );
+        return pr.data.draft ?? false;
       },
       listOpenPrs: async () => {
         const octokit = new Octokit({ auth: GITHUB_TOKEN });
